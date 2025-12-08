@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, PropsWithChildren, useMemo, useEffect } from 'react';
 import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption } from '../types';
 import { supabase } from '../services/supabaseClient';
@@ -50,6 +51,7 @@ interface AppContextType {
   deleteClass: (id: string) => Promise<void>;
   
   addUser: (user: Omit<User, 'id'>) => Promise<void>;
+  importUsers: (usersData: Omit<User, 'id'>[]) => Promise<void>;
   updateUser: (id: string, item: Partial<User>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   
@@ -646,6 +648,36 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     showNotification("Utilisateur ajouté.", 'SUCCESS', 'admin');
   };
 
+  const importUsers = async (usersData: Omit<User, 'id'>[]) => {
+    // Prepare data for DB (map to snake_case)
+    const dbData = usersData.map(u => ({
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      class_id: u.classId || null // Explicit null for DB
+    }));
+
+    const { data, error } = await supabase.from('users').insert(dbData).select();
+
+    if (error) {
+      console.error(error);
+      return showNotification("Erreur import CSV.", 'ERROR');
+    }
+
+    // Refresh local users list to get IDs
+    const newUsers = data.map(d => ({
+       id: d.id,
+       name: d.name,
+       email: d.email,
+       role: d.role,
+       classId: d.class_id
+    }));
+    
+    setAllUsers(prev => [...prev, ...newUsers]);
+    logAction('IMPORT_USERS', `Import CSV : ${usersData.length} utilisateurs ajoutés.`);
+    showNotification(`${usersData.length} utilisateurs importés avec succès.`, 'SUCCESS', 'admin');
+  };
+
   const updateUser = async (id: string, item: Partial<User>) => {
     const { error } = await supabase.from('users').update({
        name: item.name,
@@ -706,6 +738,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     updateClass,
     deleteClass,
     addUser,
+    importUsers,
     updateUser,
     deleteUser,
     getCurrentClass,

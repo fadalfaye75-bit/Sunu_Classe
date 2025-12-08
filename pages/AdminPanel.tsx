@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User, ClassGroup } from '../types';
-import { Users, School, Trash2, Plus, Shield, Pencil, Save, AlertTriangle, FileText, CheckCircle } from 'lucide-react';
+import { Users, School, Trash2, Plus, Shield, Pencil, Save, AlertTriangle, FileText, CheckCircle, Upload, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -10,12 +10,13 @@ export const AdminPanel: React.FC = () => {
   const { 
     user, users, classes, schoolName, setSchoolName,
     addClass, updateClass, deleteClass, 
-    addUser, updateUser, deleteUser, 
+    addUser, importUsers, updateUser, deleteUser, 
     getCurrentClass, auditLogs 
   } = useApp();
   
   const [activeTab, setActiveTab] = useState<'users' | 'classes' | 'logs'>('users');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // School Name Edit State
   const [isEditingSchoolName, setIsEditingSchoolName] = useState(false);
@@ -102,6 +103,87 @@ export const AdminPanel: React.FC = () => {
     setIsModalOpen(false);
   };
 
+  // --- CSV Import Logic ---
+
+  const handleDownloadTemplate = () => {
+    const headers = "Nom,Email,Role,NomClasse";
+    const example = "Jean Dupont,jean@example.com,STUDENT,DUT Informatique";
+    const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + example;
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "template_import_utilisateurs.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result as string;
+      if (!text) return;
+
+      const lines = text.split('\n');
+      const usersToImport: Omit<User, 'id'>[] = [];
+      let errorCount = 0;
+
+      // Skip header (i=1)
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const [name, email, roleStr, className] = line.split(',').map(s => s.trim());
+        
+        if (!name || !email) {
+          errorCount++;
+          continue;
+        }
+
+        // Validate Role
+        let role = Role.STUDENT;
+        if (roleStr?.toUpperCase() === 'ADMIN') role = Role.ADMIN;
+        if (roleStr?.toUpperCase() === 'RESPONSIBLE') role = Role.RESPONSIBLE;
+        
+        // Find Class ID by Name
+        let classId = undefined;
+        if (className) {
+          const foundClass = classes.find(c => c.name.toLowerCase() === className.toLowerCase());
+          if (foundClass) classId = foundClass.id;
+        }
+
+        // Security check for Responsible (can only import to own class)
+        if (!isAdmin) {
+          classId = user?.classId;
+          role = Role.STUDENT; // Force student role if imported by responsible
+        }
+
+        usersToImport.push({
+          name: name.replace(/"/g, ''), // Remove potential quotes
+          email: email.replace(/"/g, ''),
+          role,
+          classId
+        });
+      }
+
+      if (usersToImport.length > 0) {
+        await importUsers(usersToImport);
+        if (errorCount > 0) {
+          alert(`Importé ${usersToImport.length} utilisateurs. ${errorCount} lignes ignorées (erreurs).`);
+        }
+      } else {
+        alert("Aucun utilisateur valide trouvé dans le fichier.");
+      }
+      
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-0 pb-12">
       <div className="mb-10">
@@ -172,7 +254,24 @@ export const AdminPanel: React.FC = () => {
 
       {/* Buttons Actions */}
       {activeTab !== 'logs' && (
-        <div className="flex justify-end mb-6">
+        <div className="flex flex-wrap gap-3 justify-end mb-6">
+          {activeTab === 'users' && (
+            <>
+              <input 
+                type="file" 
+                accept=".csv" 
+                ref={fileInputRef} 
+                className="hidden" 
+                onChange={handleFileUpload} 
+              />
+              <button onClick={handleDownloadTemplate} className="flex items-center gap-2 bg-white text-indigo-700 border-2 border-indigo-100 px-4 py-3 rounded-xl font-bold hover:bg-indigo-50 transition">
+                <Download className="w-5 h-5" /> <span className="hidden md:inline">Modèle CSV</span>
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 bg-indigo-100 text-indigo-700 border-2 border-indigo-200 px-4 py-3 rounded-xl font-bold hover:bg-indigo-200 transition">
+                <Upload className="w-5 h-5" /> Importer CSV
+              </button>
+            </>
+          )}
           <button onClick={openCreate} className="btn-primary text-white px-6 py-3 rounded-xl font-bold active:scale-95 transition flex items-center gap-2 uppercase tracking-wide">
             <Plus className="w-5 h-5" /> 
             <span className="hidden md:inline">

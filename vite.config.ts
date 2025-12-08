@@ -10,6 +10,11 @@ export default defineConfig(({ mode }) => {
     define: {
       // Permet de garder la compatibilité avec votre code existant (process.env.API_KEY)
       'process.env.API_KEY': JSON.stringify(env.API_KEY)
+    },
+    build: {
+      outDir: 'dist',
+      sourcemap: false, // Désactivé pour la prod (plus léger)
+      minify: 'esbuild', // Compilation rapide et optimisée
     }
   };
 });
