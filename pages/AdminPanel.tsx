@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User, ClassGroup } from '../types';
-import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X, Copy, Check, Mail, Calendar, Info } from 'lucide-react';
+import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X, Copy, Check, Mail, Calendar, Info, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from '../components/UserAvatar';
@@ -11,7 +11,8 @@ export const AdminPanel: React.FC = () => {
     user, users, classes, schoolName, setSchoolName,
     addClass, updateClass, deleteClass, 
     addUser, importUsers, updateUser, deleteUser, 
-    getCurrentClass, auditLogs, sentEmails, dismissNotification 
+    getCurrentClass, auditLogs, sentEmails, dismissNotification, addNotification,
+    resendEmail
   } = useApp();
   
   const [activeTab, setActiveTab] = useState<'users' | 'classes' | 'logs' | 'emails'>('users');
@@ -80,6 +81,7 @@ export const AdminPanel: React.FC = () => {
     navigator.clipboard.writeText(text).then(() => {
       setCopiedUserId(u.id);
       setTimeout(() => setCopiedUserId(null), 2000);
+      addNotification("Infos copiées", "INFO");
     });
   };
 
@@ -181,10 +183,10 @@ export const AdminPanel: React.FC = () => {
       if (usersToImport.length > 0) {
         await importUsers(usersToImport);
         if (errorCount > 0) {
-          alert(`Importé ${usersToImport.length} utilisateurs. ${errorCount} lignes ignorées (erreurs).`);
+          addNotification(`Importé ${usersToImport.length} utilisateurs. ${errorCount} lignes ignorées.`, "WARNING");
         }
       } else {
-        alert("Aucun utilisateur valide trouvé dans le fichier.");
+        addNotification("Aucun utilisateur valide trouvé dans le fichier.", "ERROR");
       }
       
       // Reset input
@@ -353,11 +355,12 @@ export const AdminPanel: React.FC = () => {
                     <th className="p-4 md:p-6">Envoyé par</th>
                     <th className="p-4 md:p-6">Destinataire</th>
                     <th className="p-4 md:p-6">Sujet</th>
+                    <th className="p-4 md:p-6 text-right">Action</th>
                  </tr>
               </thead>
               <tbody className="divide-y divide-[#D6C0B0] dark:divide-[#431407]">
                  {sentEmails.length === 0 && (
-                   <tr><td colSpan={5} className="p-10 text-center text-slate-400 font-bold">Aucun email envoyé pour le moment.</td></tr>
+                   <tr><td colSpan={6} className="p-10 text-center text-slate-400 font-bold">Aucun email envoyé pour le moment.</td></tr>
                  )}
                  {sentEmails.map((email) => (
                    <tr key={email.id} className="hover:bg-slate-50 dark:hover:bg-[#3E2723] transition text-sm">
@@ -377,11 +380,20 @@ export const AdminPanel: React.FC = () => {
                       <td className="p-4 md:p-6 font-bold text-[#2D1B0E] dark:text-[#fcece4]">
                          {email.sender_name}
                       </td>
-                      <td className="p-4 md:p-6 font-medium text-[#5D4037] dark:text-[#D6C0B0]">
+                      <td className="p-4 md:p-6 font-medium text-[#5D4037] dark:text-[#D6C0B0] max-w-[150px] truncate">
                          {email.recipient_email || 'Inconnu'}
                       </td>
-                      <td className="p-4 md:p-6 text-[#5D4037] dark:text-[#D6C0B0] font-bold truncate max-w-[250px]">
+                      <td className="p-4 md:p-6 text-[#5D4037] dark:text-[#D6C0B0] font-bold truncate max-w-[200px]">
                          {email.subject}
+                      </td>
+                      <td className="p-4 md:p-6 text-right">
+                         <button 
+                           onClick={() => resendEmail(email)}
+                           className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 p-2 rounded-lg transition border border-transparent hover:border-indigo-100 dark:hover:border-indigo-800 flex items-center gap-1 ml-auto"
+                           title="Renvoyer cet email"
+                         >
+                           <RefreshCw className="w-4 h-4" /> <span className="font-bold hidden md:inline">Renvoyer</span>
+                         </button>
                       </td>
                    </tr>
                  ))}

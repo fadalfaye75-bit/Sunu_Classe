@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Poll } from '../types';
-import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send } from 'lucide-react';
+import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send, Lock, Unlock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export const Polls: React.FC = () => {
-  const { user, polls, addPoll, updatePoll, votePoll, deletePoll, shareResource } = useApp();
+  const { user, polls, addPoll, updatePoll, votePoll, deletePoll, shareResource, addNotification } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Creation State
@@ -17,6 +17,7 @@ export const Polls: React.FC = () => {
 
   // Permissions Check: Strictly RESPONSIBLE can manage. Admin observes. Student reads.
   const canManage = user?.role === Role.RESPONSIBLE;
+  const isAdmin = user?.role === Role.ADMIN;
 
   const openCreate = () => {
     setEditingId(null);
@@ -34,13 +35,24 @@ export const Polls: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const togglePollStatus = (poll: Poll) => {
+    updatePoll(poll.id, { active: !poll.active });
+    addNotification(poll.active ? 'Sondage clôturé' : 'Sondage réouvert', 'INFO');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const optionsList = optionsStr.split(',').map(s => ({
+    // Support comma or newline separation
+    const optionsList = optionsStr.split(/[,\n]/).map(s => ({
       id: Math.random().toString(36).substr(2, 5),
       label: s.trim(),
       voterIds: []
     })).filter(o => o.label.length > 0);
+
+    if (optionsList.length < 2) {
+      addNotification("Il faut au moins 2 options pour un sondage.", "WARNING");
+      return;
+    }
 
     if (editingId) {
        updatePoll(editingId, {
@@ -59,6 +71,18 @@ export const Polls: React.FC = () => {
         });
     }
     setIsModalOpen(false);
+  };
+
+  const handleVote = (pollId: string, optionId: string, isActive: boolean) => {
+    if (!isActive) {
+      addNotification("Ce sondage est clôturé.", "WARNING");
+      return;
+    }
+    if (isAdmin) {
+      addNotification("L'administrateur supervise mais ne vote pas.", "INFO");
+      return;
+    }
+    votePoll(pollId, optionId);
   };
 
   const COLORS = ['#EA580C', '#4F46E5', '#D97706', '#DC2626', '#059669'];
@@ -96,16 +120,19 @@ export const Polls: React.FC = () => {
           // Check if user has voted in ANY option of this poll
           const userVotedOptionId = poll.options.find(opt => opt.voterIds.includes(user?.id || ''))?.id;
           const hasVoted = !!userVotedOptionId;
-          const canViewResults = hasVoted || user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
+          const canViewResults = hasVoted || user?.role === Role.RESPONSIBLE || isAdmin || !poll.active;
 
           // Prepare data for chart
           const chartData = poll.options.map(o => ({ ...o, votes: o.voterIds.length }));
 
           return (
-            <div key={poll.id} className="bg-white dark:bg-[#2D1B0E] rounded-3xl shadow-sm border-2 border-[#D6C0B0] dark:border-[#431407] p-5 md:p-8 hover:border-purple-300 dark:hover:border-purple-700 transition group">
+            <div key={poll.id} className={`bg-white dark:bg-[#2D1B0E] rounded-3xl shadow-sm border-2 p-5 md:p-8 transition group ${poll.active ? 'border-[#D6C0B0] dark:border-[#431407] hover:border-purple-300 dark:hover:border-purple-700' : 'border-slate-200 dark:border-slate-800 opacity-90'}`}>
               <div className="flex flex-col md:flex-row justify-between items-start mb-6 md:mb-8 gap-4">
                 <div className="flex-1 w-full">
-                   <h3 className="text-xl md:text-2xl font-black text-[#2D1B0E] dark:text-[#fcece4] leading-tight">{poll.question}</h3>
+                   <h3 className="text-xl md:text-2xl font-black text-[#2D1B0E] dark:text-[#fcece4] leading-tight flex items-center gap-2">
+                     {poll.question}
+                     {!poll.active && <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-lg uppercase tracking-wide border border-slate-200 dark:border-slate-700">Clôturé</span>}
+                   </h3>
                    <div className="flex items-center gap-3 mt-3 md:mt-4">
                       {poll.isAnonymous ? (
                         <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded uppercase font-black border border-slate-200 dark:border-slate-700 tracking-wider flex items-center gap-2">
@@ -120,7 +147,14 @@ export const Polls: React.FC = () => {
                    </div>
                 </div>
                 {canManage && (
-                  <div className="flex gap-2 w-full md:w-auto">
+                  <div className="flex gap-2 w-full md:w-auto flex-wrap">
+                    <button 
+                      onClick={() => togglePollStatus(poll)}
+                      className={`flex-1 md:flex-none justify-center p-3 rounded-xl transition border-2 active:scale-95 ${poll.active ? 'text-orange-700 bg-orange-50 border-orange-100 hover:bg-orange-100' : 'text-emerald-700 bg-emerald-50 border-emerald-100 hover:bg-emerald-100'}`}
+                      title={poll.active ? "Clôturer le sondage" : "Réouvrir le sondage"}
+                    >
+                      {poll.active ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+                    </button>
                     <button 
                       onClick={() => shareResource('POLL', poll)} 
                       className="flex-1 md:flex-none justify-center text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 p-3 rounded-xl transition border border-emerald-100 dark:border-emerald-800 active:scale-95"
@@ -144,16 +178,21 @@ export const Polls: React.FC = () => {
                   {poll.options.map((opt) => {
                     const isSelected = opt.id === userVotedOptionId;
                     const voteCount = opt.voterIds.length;
+                    const isDisabled = !poll.active || isAdmin;
                     
                     return (
                       <button
                         key={opt.id}
-                        onClick={() => votePoll(poll.id, opt.id)}
-                        className={`w-full text-left p-4 md:p-5 rounded-2xl border-2 transition-all relative overflow-hidden group ${
-                          isSelected 
+                        onClick={(e) => { e.stopPropagation(); handleVote(poll.id, opt.id, poll.active); }}
+                        disabled={isDisabled && !isSelected}
+                        className={`w-full text-left p-4 md:p-5 rounded-2xl border-2 transition-all relative overflow-hidden group 
+                          ${isSelected 
                             ? 'cursor-default border-purple-500 bg-purple-50 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 shadow-inner' 
-                            : 'hover:border-purple-400 dark:hover:border-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/10 border-[#EFEBE9] dark:border-[#431407] text-[#2D1B0E] dark:text-[#fcece4] active:scale-98 shadow-sm hover:shadow-md'
-                        }`}
+                            : isDisabled
+                              ? 'opacity-60 cursor-not-allowed border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50'
+                              : 'hover:border-purple-400 dark:hover:border-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/10 border-[#EFEBE9] dark:border-[#431407] text-[#2D1B0E] dark:text-[#fcece4] active:scale-98 shadow-sm hover:shadow-md'
+                          }
+                        `}
                       >
                         <div className="flex justify-between items-center z-10 relative">
                           <span className={`font-bold text-base md:text-lg ${isSelected ? 'flex items-center gap-2' : ''}`}>
@@ -175,9 +214,19 @@ export const Polls: React.FC = () => {
                     );
                   })}
                   
-                  {hasVoted && (
+                  {hasVoted && poll.active && !isAdmin && (
                     <p className="text-center text-xs text-purple-600 dark:text-purple-400 font-bold mt-2 animate-pulse">
                        Vous pouvez changer votre choix en cliquant sur une autre option.
+                    </p>
+                  )}
+                  {isAdmin && (
+                     <p className="text-center text-xs text-[#8D6E63] dark:text-[#A1887F] font-bold mt-2 flex items-center justify-center gap-1">
+                       <Eye className="w-3 h-3"/> Mode Supervision (Vote désactivé)
+                    </p>
+                  )}
+                  {!poll.active && (
+                     <p className="text-center text-xs text-red-500 font-bold mt-2 flex items-center justify-center gap-1">
+                       <Lock className="w-3 h-3"/> Sondage clôturé
                     </p>
                   )}
                 </div>
