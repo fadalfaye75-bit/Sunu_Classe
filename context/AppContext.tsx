@@ -652,7 +652,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
      let recipients = [];
      let useClassEmail = false;
 
-     if (targetClass && targetClass.email) {
+     if (targetClass && targetClass.email && targetClass.email.trim() !== '') {
        recipients = [targetClass.email];
        useClassEmail = true;
      } else {
@@ -697,7 +697,12 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
      await new Promise(resolve => setTimeout(resolve, 800));
 
      logAction('SHARE_CONTENT', `Partage email ${type} vers ${useClassEmail ? targetClass?.email : targetStudents.length + ' étudiants'}.`);
-     showNotification(`Envoyé ${useClassEmail ? 'à la liste de diffusion' : 'aux étudiants'}.`, 'SUCCESS');
+     
+     if (useClassEmail) {
+        showNotification(`Envoyé à la liste : ${targetClass?.email}`, 'SUCCESS');
+     } else {
+        showNotification(`Envoyé à ${targetStudents.length} étudiants.`, 'SUCCESS');
+     }
   };
 
   // --- Admin Logic ---

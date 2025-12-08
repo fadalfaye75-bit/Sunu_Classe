@@ -26,7 +26,7 @@ import {
   Archive
 } from 'lucide-react';
 import { Role, Notification } from '../types';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from './UserAvatar';
 
@@ -59,8 +59,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotifMenuOpen, setIsNotifMenuOpen] = useState(false);
   
-  // Time State
-  const [currentTime, setCurrentTime] = useState(new Date());
+  // Time State (Dakar)
+  const [dakarTime, setDakarTime] = useState("");
   
   // Profile Modal State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -68,9 +68,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
   const currentClass = getCurrentClass();
 
-  // Update clock every minute
+  // Update clock every second (Dakar TimeZone)
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    const updateClock = () => {
+      const now = new Date();
+      // Force Timezone to Africa/Dakar (GMT)
+      const timeString = now.toLocaleTimeString('fr-SN', {
+        timeZone: 'Africa/Dakar',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      setDakarTime(timeString);
+    };
+
+    updateClock(); // Initial call
+    const timer = setInterval(updateClock, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -362,7 +374,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                   <span className="w-1 h-1 bg-slate-300 dark:bg-slate-600 rounded-full"></span>
                   <span className="flex items-center gap-1.5 text-[#EA580C] bg-orange-50 dark:bg-orange-900/30 px-2 py-0.5 rounded-lg text-sm font-bold border border-orange-100 dark:border-orange-800/50">
                      <Clock className="w-3.5 h-3.5" />
-                     {format(currentTime, 'HH:mm', { locale: fr })}
+                     {dakarTime} <span className="text-[10px] uppercase opacity-70 ml-1">Dakar (GMT)</span>
                   </span>
                </div>
              </div>
