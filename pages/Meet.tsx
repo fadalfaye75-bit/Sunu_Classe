@@ -1,12 +1,13 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, MeetSession } from '../types';
-import { Video, Plus, Trash2, ExternalLink, AlertCircle, Pencil, User, BellRing, X } from 'lucide-react';
+import { Video, Plus, Trash2, ExternalLink, AlertCircle, Pencil, User, BellRing, X, Send } from 'lucide-react';
 import { format, isBefore, addMinutes, isAfter } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export const Meet: React.FC = () => {
-  const { user, meets, addMeet, updateMeet, deleteMeet } = useApp();
+  const { user, meets, addMeet, updateMeet, deleteMeet, shareResource } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // State
@@ -18,6 +19,9 @@ export const Meet: React.FC = () => {
 
   // Notification Target State
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
+
+  // Permissions Check: Strictly RESPONSIBLE can manage. Admin observes. Student reads.
+  const canManage = user?.role === Role.RESPONSIBLE;
 
   const openCreate = () => {
     setEditingId(null);
@@ -74,7 +78,7 @@ export const Meet: React.FC = () => {
           </h1>
           <p className="text-[#5D4037] dark:text-[#A1887F] mt-2 font-bold text-base md:text-lg">Accès direct aux cours en ligne.</p>
         </div>
-        {(user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN) && (
+        {canManage && (
           <button onClick={openCreate} className="w-full md:w-auto btn-primary text-white px-6 py-3 rounded-xl font-bold active:scale-95 transition flex items-center justify-center gap-2 uppercase tracking-wide">
             <Plus className="w-5 h-5"/> <span>Nouveau Meet</span>
           </button>
@@ -144,8 +148,15 @@ export const Meet: React.FC = () => {
                  >
                    <span>Rejoindre</span> <ExternalLink className="w-5 h-5" />
                  </a>
-                 {(user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN) && (
+                 {canManage && (
                    <div className="flex gap-2 w-full">
+                      <button 
+                        onClick={() => shareResource('MEET', meet)}
+                        className="flex-1 p-3 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-xl flex justify-center items-center transition border-2 border-emerald-100 dark:border-emerald-800 active:scale-95"
+                        title="Envoyer par mail"
+                      >
+                        <Send className="w-5 h-5" />
+                      </button>
                       <button 
                         onClick={() => openEdit(meet)}
                         className="flex-1 p-3 text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-xl flex justify-center items-center transition border-2 border-indigo-100 dark:border-indigo-800 active:scale-95"
@@ -168,7 +179,7 @@ export const Meet: React.FC = () => {
         })}
       </div>
 
-      {isModalOpen && (
+      {isModalOpen && canManage && (
         <div className="fixed inset-0 bg-[#2D1B0E]/80 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#2D1B0E] rounded-t-3xl md:rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden border-t-4 md:border-4 border-[#7C2D12]">
             <div className="p-5 md:p-6 border-b-2 border-slate-100 dark:border-[#431407] flex justify-between items-center pattern-bogolan text-white shrink-0">
@@ -200,30 +211,6 @@ export const Meet: React.FC = () => {
                       <input required type="url" value={link} onChange={e => setLink(e.target.value)} className="w-full bg-[#FFF8F0] dark:bg-[#1a100a] border-2 border-[#D6C0B0] dark:border-[#5D4037] rounded-xl pl-12 p-4 text-base focus:border-emerald-500 focus:bg-white dark:focus:bg-[#0f0906] outline-none transition font-bold text-emerald-700 dark:text-emerald-400" placeholder="https://meet.google.com/..." />
                     </div>
                  </div>
-
-                 {!editingId && (
-                  <div className="bg-[#FFF8F0] dark:bg-[#1a100a] border-2 border-[#D6C0B0] dark:border-[#5D4037] p-4 rounded-xl">
-                    <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-3 uppercase tracking-wide flex items-center gap-2">
-                      <BellRing className="w-4 h-4" /> Notifier
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { role: Role.STUDENT, label: 'Étudiants', color: 'emerald' },
-                        { role: Role.RESPONSIBLE, label: 'Responsables', color: 'indigo' },
-                        { role: Role.ADMIN, label: 'Admins', color: 'red' }
-                      ].map(target => (
-                        <button 
-                          key={target.role}
-                          type="button" 
-                          onClick={() => toggleTargetRole(target.role)}
-                          className={`flex-1 min-w-[100px] px-3 py-3 rounded-lg text-sm font-bold border-2 transition active:scale-95 ${targetRoles.includes(target.role) ? `bg-${target.color}-100 dark:bg-${target.color}-900/30 border-${target.color}-300 dark:border-${target.color}-700 text-${target.color}-800 dark:text-${target.color}-300` : 'bg-white dark:bg-[#2D1B0E] border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}
-                        >
-                          {target.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
                  
                  <div className="flex flex-col-reverse md:flex-row gap-3 pt-4">
                     <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-4 rounded-xl font-bold text-[#5D4037] dark:text-[#D6C0B0] bg-[#EFEBE9] dark:bg-[#3E2723] hover:bg-[#D7CCC8] dark:hover:bg-[#4E342E] transition border-2 border-transparent active:scale-95">

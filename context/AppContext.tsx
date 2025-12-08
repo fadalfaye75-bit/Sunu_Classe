@@ -48,8 +48,11 @@ interface AppContextType {
   votePoll: (pollId: string, optionId: string) => Promise<void>;
   deletePoll: (id: string) => Promise<void>;
 
+  // Sharing
+  shareResource: (type: 'ANNOUNCEMENT' | 'MEET' | 'EXAM' | 'POLL', item: any) => Promise<void>;
+
   // Admin / Class Management
-  addClass: (name: string, description: string) => Promise<void>;
+  addClass: (name: string, description: string, email: string) => Promise<void>;
   updateClass: (id: string, item: Partial<ClassGroup>) => Promise<void>;
   deleteClass: (id: string) => Promise<void>;
   
@@ -635,11 +638,73 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     showNotification("Sondage supprimé.", 'INFO', 'polls');
   };
 
+  // --- Sharing & Emails ---
+
+  const shareResource = async (type: 'ANNOUNCEMENT' | 'MEET' | 'EXAM' | 'POLL', item: any) => {
+     // Permission Check: ONLY Responsible can share
+     if (!user || user.role !== Role.RESPONSIBLE) return;
+
+     // 1. Identify Target Audience
+     const targetClassId = item.classId;
+     const targetClass = classes.find(c => c.id === targetClassId);
+     const targetStudents = allUsers.filter(u => u.classId === targetClassId && u.role === Role.STUDENT);
+     
+     let recipients = [];
+     let useClassEmail = false;
+
+     if (targetClass && targetClass.email) {
+       recipients = [targetClass.email];
+       useClassEmail = true;
+     } else {
+       if (targetStudents.length === 0) {
+         showNotification("Aucun étudiant à notifier dans cette classe.", 'WARNING');
+         return;
+       }
+       recipients = targetStudents.map(u => u.email).filter(e => e);
+     }
+     
+     // 2. Prepare Data
+     let subject = "";
+     let body = "";
+
+     switch (type) {
+       case 'ANNOUNCEMENT':
+         subject = `[${schoolName}] Annonce : ${item.title}`;
+         body = `Bonjour,\n\nUne nouvelle annonce a été publiée :\n\n${item.title}\n${item.content}\n\nUrgence : ${item.urgency}`;
+         break;
+       case 'MEET':
+         subject = `[${schoolName}] Cours en Visio : ${item.subject}`;
+         body = `Bonjour,\n\nUn cours en visio est programmé.\n\nSujet : ${item.subject}\nEnseignant : ${item.teacherName}\nDate : ${new Date(item.date).toLocaleString()}\nLien : ${item.link}`;
+         break;
+       case 'EXAM':
+         subject = `[${schoolName}] Examen : ${item.subject}`;
+         body = `Bonjour,\n\nUn examen a été programmé.\n\nMatière : ${item.subject}\nDate : ${new Date(item.date).toLocaleString()}\nSalle : ${item.room}\nDurée : ${item.durationMinutes} min`;
+         break;
+       case 'POLL':
+         subject = `[${schoolName}] Sondage : ${item.question}`;
+         body = `Bonjour,\n\nUn nouveau sondage nécessite votre avis :\n\n"${item.question}"\n\nConnectez-vous pour voter.`;
+         break;
+     }
+
+     // 3. Simulate Sending (In a real app, this calls an API)
+     const emailsJoined = recipients.join(',');
+     console.log(`Sending email to: ${emailsJoined}`);
+     console.log(`Via: ${useClassEmail ? 'Mailing List Classe' : 'Liste étudiants individuelle'}`);
+     console.log(`Subject: ${subject}`);
+     console.log(`Body: ${body}`);
+
+     // UX Feedback - Simulate network delay
+     await new Promise(resolve => setTimeout(resolve, 800));
+
+     logAction('SHARE_CONTENT', `Partage email ${type} vers ${useClassEmail ? targetClass?.email : targetStudents.length + ' étudiants'}.`);
+     showNotification(`Envoyé ${useClassEmail ? 'à la liste de diffusion' : 'aux étudiants'}.`, 'SUCCESS');
+  };
+
   // --- Admin Logic ---
 
-  const addClass = async (name: string, description: string) => {
+  const addClass = async (name: string, description: string, email: string) => {
     const { data, error } = await supabase.from('classes').insert([{
-      name, description
+      name, description, email
     }]).select().single();
 
     if (error) return showNotification("Erreur création classe.", 'ERROR');
@@ -782,6 +847,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     updatePoll,
     votePoll,
     deletePoll,
+    shareResource,
     addClass,
     updateClass,
     deleteClass,

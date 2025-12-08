@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User, ClassGroup } from '../types';
@@ -29,6 +30,7 @@ export const AdminPanel: React.FC = () => {
   // Class Form
   const [className, setClassName] = useState('');
   const [classDesc, setClassDesc] = useState('');
+  const [classEmail, setClassEmail] = useState('');
 
   // User Form
   const [userName, setUserName] = useState('');
@@ -36,13 +38,15 @@ export const AdminPanel: React.FC = () => {
   const [userRole, setUserRole] = useState<Role>(Role.STUDENT);
   const [userClassId, setUserClassId] = useState('');
 
-  // Check permissions
-  const currentClass = getCurrentClass();
+  // Check permissions: Strict separation
   const isAdmin = user?.role === Role.ADMIN;
+  // Responsible can view but NOT edit in this panel (Supervision limited to their own class usually, but AdminPanel is global)
+  // According to prompt: Admin creates access. Responsible manages content. 
+  // So AdminPanel is strictly for Admin actions.
   
   const filteredUsers = isAdmin 
     ? users 
-    : users.filter(u => u.classId === user?.classId && u.role === Role.STUDENT);
+    : users.filter(u => u.classId === user?.classId);
 
   const saveSchoolName = () => {
     setSchoolName(tempSchoolName);
@@ -53,11 +57,11 @@ export const AdminPanel: React.FC = () => {
     setEditingId(null);
     setClassName('');
     setClassDesc('');
+    setClassEmail('');
     setUserName('');
     setUserEmail('');
-    // Par défaut, si admin => étudiant, si responsable => étudiant forcé
     setUserRole(Role.STUDENT);
-    setUserClassId(isAdmin ? '' : user?.classId || '');
+    setUserClassId('');
     setIsModalOpen(true);
   };
 
@@ -84,15 +88,16 @@ export const AdminPanel: React.FC = () => {
     setEditingId(c.id);
     setClassName(c.name);
     setClassDesc(c.description || '');
+    setClassEmail(c.email || '');
     setIsModalOpen(true);
   };
 
   const handleCreateClass = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingId) {
-      updateClass(editingId, { name: className, description: classDesc });
+      updateClass(editingId, { name: className, description: classDesc, email: classEmail });
     } else {
-      addClass(className, classDesc);
+      addClass(className, classDesc, classEmail);
     }
     setIsModalOpen(false);
   };
@@ -103,7 +108,7 @@ export const AdminPanel: React.FC = () => {
         name: userName,
         email: userEmail,
         role: userRole,
-        classId: isAdmin ? userClassId : user?.classId // Responsable can only add to their class
+        classId: userClassId
     };
 
     if (editingId) {
@@ -166,12 +171,6 @@ export const AdminPanel: React.FC = () => {
           if (foundClass) classId = foundClass.id;
         }
 
-        // Security check for Responsible (can only import to own class)
-        if (!isAdmin) {
-          classId = user?.classId;
-          role = Role.STUDENT; // Force student role if imported by responsible
-        }
-
         usersToImport.push({
           name: name.replace(/"/g, ''), // Remove potential quotes
           email: email.replace(/"/g, ''),
@@ -205,7 +204,7 @@ export const AdminPanel: React.FC = () => {
         <p className="text-[#5D4037] dark:text-[#A1887F] mt-3 font-bold text-base md:text-lg">
            {isAdmin 
              ? 'Gérez l\'ensemble de l\'écosystème scolaire.' 
-             : `Gérez les dossiers étudiants de la classe ${currentClass?.name}.`}
+             : `Vue d'ensemble de la classe.`}
         </p>
       </div>
       
@@ -263,8 +262,8 @@ export const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Buttons Actions */}
-      {activeTab !== 'logs' && (
+      {/* Buttons Actions (ADMIN ONLY) */}
+      {activeTab !== 'logs' && isAdmin && (
         <div className="flex flex-col md:flex-row flex-wrap gap-3 justify-end mb-6">
           {activeTab === 'users' && (
             <>
@@ -286,9 +285,7 @@ export const AdminPanel: React.FC = () => {
           <button onClick={openCreate} className="btn-primary text-white px-6 py-3 rounded-xl font-bold active:scale-95 transition flex items-center justify-center gap-2 uppercase tracking-wide">
             <Plus className="w-5 h-5" /> 
             <span className="inline">
-              {activeTab === 'classes' && isAdmin 
-                ? 'Ajouter Classe' 
-                : (isAdmin ? 'Ajouter Compte' : 'Ajouter Étudiant')}
+              {activeTab === 'classes' ? 'Ajouter Classe' : 'Ajouter Compte'}
             </span>
           </button>
         </div>
@@ -347,6 +344,7 @@ export const AdminPanel: React.FC = () => {
               <div>
                    <h3 className="text-2xl font-black text-[#2D1B0E] dark:text-[#fcece4]">{cls.name}</h3>
                    <p className="text-sm text-[#5D4037] dark:text-[#D6C0B0] mt-2 font-bold">{cls.description}</p>
+                   {cls.email && <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 font-medium">{cls.email}</p>}
                    <div className="mt-4 text-xs font-black text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/30 inline-block px-3 py-1.5 rounded uppercase tracking-wider">
                       {users.filter(u => u.classId === cls.id).length} membres
                    </div>
@@ -376,7 +374,7 @@ export const AdminPanel: React.FC = () => {
                   <th className="p-6">Email</th>
                   <th className="p-6">Rôle</th>
                   <th className="p-6">Classe</th>
-                  <th className="p-6 text-right">Actions</th>
+                  {isAdmin && <th className="p-6 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#D6C0B0] dark:divide-[#431407]">
@@ -400,17 +398,19 @@ export const AdminPanel: React.FC = () => {
                         </span>
                       </td>
                       <td className="p-6 text-[#5D4037] dark:text-[#D6C0B0] font-bold">{uClass?.name || '-'}</td>
-                      <td className="p-6 text-right flex justify-end gap-2">
-                         <button 
-                           onClick={() => copyUserInfo(u)} 
-                           className={`p-2.5 rounded-lg transition border border-transparent ${isCopied ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-[#3E2723] hover:text-slate-600 dark:hover:text-slate-300'}`}
-                           title="Copier les infos"
-                         >
-                           {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                         </button>
-                         <button onClick={() => openEditUser(u)} className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 p-2.5 rounded-lg transition border border-transparent hover:border-indigo-100 dark:hover:border-indigo-800"><Pencil className="w-4 h-4"/></button>
-                         <button onClick={() => deleteUser(u.id)} className="text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 p-2.5 rounded-lg transition border border-transparent hover:border-red-100 dark:hover:border-red-800"><Trash2 className="w-4 h-4"/></button>
-                      </td>
+                      {isAdmin && (
+                        <td className="p-6 text-right flex justify-end gap-2">
+                           <button 
+                             onClick={() => copyUserInfo(u)} 
+                             className={`p-2.5 rounded-lg transition border border-transparent ${isCopied ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-[#3E2723] hover:text-slate-600 dark:hover:text-slate-300'}`}
+                             title="Copier les infos"
+                           >
+                             {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                           </button>
+                           <button onClick={() => openEditUser(u)} className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 p-2.5 rounded-lg transition border border-transparent hover:border-indigo-100 dark:hover:border-indigo-800"><Pencil className="w-4 h-4"/></button>
+                           <button onClick={() => deleteUser(u.id)} className="text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 p-2.5 rounded-lg transition border border-transparent hover:border-red-100 dark:hover:border-red-800"><Trash2 className="w-4 h-4"/></button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -448,20 +448,22 @@ export const AdminPanel: React.FC = () => {
                     {uClass?.name || 'Aucune classe'}
                   </div>
 
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => copyUserInfo(u)} 
-                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-black text-sm transition border ${isCopied ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-[#3E2723] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-[#4E342E]'}`}
-                    >
-                      {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                    <button onClick={() => openEditUser(u)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 rounded-xl font-black text-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition border border-indigo-200 dark:border-indigo-800 active:scale-95">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => deleteUser(u.id)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-xl font-black text-sm hover:bg-red-100 dark:hover:bg-red-900/30 transition border border-red-200 dark:border-red-800 active:scale-95">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => copyUserInfo(u)} 
+                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-black text-sm transition border ${isCopied ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-[#3E2723] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-[#4E342E]'}`}
+                      >
+                        {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                      <button onClick={() => openEditUser(u)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 rounded-xl font-black text-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition border border-indigo-200 dark:border-indigo-800 active:scale-95">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => deleteUser(u.id)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-xl font-black text-sm hover:bg-red-100 dark:hover:bg-red-900/30 transition border border-red-200 dark:border-red-800 active:scale-95">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -470,16 +472,14 @@ export const AdminPanel: React.FC = () => {
       )}
 
       {/* Modal */}
-      {isModalOpen && (
+      {isModalOpen && isAdmin && (
         <div className="fixed inset-0 bg-[#2D1B0E]/80 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#2D1B0E] rounded-t-3xl md:rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden border-t-4 md:border-4 border-[#7C2D12]">
             <div className="p-5 md:p-6 border-b-2 border-slate-100 dark:border-[#431407] flex justify-between items-center pattern-bogolan text-white shrink-0">
               <h3 className="font-black text-lg md:text-xl uppercase tracking-wide">
-                {activeTab === 'classes' && isAdmin
+                {activeTab === 'classes'
                    ? (editingId ? 'Modifier Classe' : 'Nouvelle Classe') 
-                   : (editingId 
-                      ? (isAdmin ? 'Modifier Utilisateur' : 'Modifier Étudiant') 
-                      : (isAdmin ? 'Nouveau Compte' : 'Ajouter Étudiant'))}
+                   : (editingId ? 'Modifier Compte' : 'Nouveau Compte')}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-full text-white transition active:scale-90">
                 <X className="w-6 h-6" />
@@ -487,7 +487,7 @@ export const AdminPanel: React.FC = () => {
             </div>
             
             <div className="overflow-y-auto p-5 md:p-8 bg-white dark:bg-[#2D1B0E] scrollbar-thin scrollbar-thumb-[#D6C0B0]">
-              {activeTab === 'classes' && isAdmin ? (
+              {activeTab === 'classes' ? (
                 <form onSubmit={handleCreateClass} className="space-y-6">
                   <div>
                     <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-2 uppercase">Nom de la classe</label>
@@ -496,6 +496,10 @@ export const AdminPanel: React.FC = () => {
                   <div>
                     <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-2 uppercase">Description</label>
                     <input placeholder="ex: Promotion 2026" value={classDesc} onChange={e => setClassDesc(e.target.value)} className="w-full bg-[#FFF8F0] dark:bg-[#1a100a] border-2 border-[#D6C0B0] dark:border-[#5D4037] rounded-xl p-4 text-base focus:border-[#EA580C] focus:bg-white dark:focus:bg-[#0f0906] outline-none transition font-bold text-[#2D1B0E] dark:text-[#fcece4]" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-2 uppercase">Email de la classe (Mailing List)</label>
+                    <input type="email" placeholder="ex: dut2-promo26@ecole.com" value={classEmail} onChange={e => setClassEmail(e.target.value)} className="w-full bg-[#FFF8F0] dark:bg-[#1a100a] border-2 border-[#D6C0B0] dark:border-[#5D4037] rounded-xl p-4 text-base focus:border-[#EA580C] focus:bg-white dark:focus:bg-[#0f0906] outline-none transition font-bold text-[#2D1B0E] dark:text-[#fcece4]" />
                   </div>
                   
                   <div className="flex flex-col-reverse md:flex-row gap-3 pt-4">
@@ -518,21 +522,19 @@ export const AdminPanel: React.FC = () => {
                      <input required type="email" placeholder="email@ecole.com" value={userEmail} onChange={e => setUserEmail(e.target.value)} className="w-full bg-[#FFF8F0] dark:bg-[#1a100a] border-2 border-[#D6C0B0] dark:border-[#5D4037] rounded-xl p-4 text-base focus:border-[#EA580C] focus:bg-white dark:focus:bg-[#0f0906] outline-none transition font-bold text-[#2D1B0E] dark:text-[#fcece4]" />
                   </div>
                   
-                  {isAdmin && (
-                    <div>
-                      <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-2 uppercase">Rôle</label>
-                      <div className="relative">
-                        <select value={userRole} onChange={e => setUserRole(e.target.value as Role)} className="w-full bg-[#FFF8F0] dark:bg-[#1a100a] border-2 border-[#D6C0B0] dark:border-[#5D4037] rounded-xl p-4 text-base focus:border-[#EA580C] focus:bg-white dark:focus:bg-[#0f0906] outline-none transition font-bold text-[#2D1B0E] dark:text-[#fcece4] appearance-none">
-                          <option value={Role.ADMIN}>Administrateur</option>
-                          <option value={Role.RESPONSIBLE}>Responsable</option>
-                          <option value={Role.STUDENT}>Étudiant</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-[#5D4037] dark:text-[#D6C0B0]">▼</div>
-                      </div>
+                  <div>
+                    <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-2 uppercase">Rôle</label>
+                    <div className="relative">
+                      <select value={userRole} onChange={e => setUserRole(e.target.value as Role)} className="w-full bg-[#FFF8F0] dark:bg-[#1a100a] border-2 border-[#D6C0B0] dark:border-[#5D4037] rounded-xl p-4 text-base focus:border-[#EA580C] focus:bg-white dark:focus:bg-[#0f0906] outline-none transition font-bold text-[#2D1B0E] dark:text-[#fcece4] appearance-none">
+                        <option value={Role.ADMIN}>Administrateur</option>
+                        <option value={Role.RESPONSIBLE}>Responsable</option>
+                        <option value={Role.STUDENT}>Étudiant</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-[#5D4037] dark:text-[#D6C0B0]">▼</div>
                     </div>
-                  )}
+                  </div>
 
-                  {isAdmin && userRole !== Role.ADMIN && (
+                  {userRole !== Role.ADMIN && (
                     <div>
                       <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-2 uppercase">Classe</label>
                        <div className="relative">
@@ -543,12 +545,6 @@ export const AdminPanel: React.FC = () => {
                          <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-[#5D4037] dark:text-[#D6C0B0]">▼</div>
                        </div>
                     </div>
-                  )}
-                  
-                  {!isAdmin && (
-                     <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-4 rounded-xl text-indigo-700 dark:text-indigo-400 text-sm font-bold">
-                        Ce compte "Étudiant" sera automatiquement ajouté à votre classe : {currentClass?.name}.
-                     </div>
                   )}
 
                   <div className="flex flex-col-reverse md:flex-row gap-3 pt-4">

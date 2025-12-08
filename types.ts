@@ -9,6 +9,7 @@ export interface ClassGroup {
   id: string;
   name: string; // ex: DUT 2
   description?: string;
+  email?: string; // Mailing list de la classe (ex: dut2@ecole.com)
 }
 
 export interface User {

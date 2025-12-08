@@ -1,11 +1,12 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Poll } from '../types';
-import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X } from 'lucide-react';
+import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export const Polls: React.FC = () => {
-  const { user, polls, addPoll, updatePoll, votePoll, deletePoll } = useApp();
+  const { user, polls, addPoll, updatePoll, votePoll, deletePoll, shareResource } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Creation State
@@ -13,6 +14,9 @@ export const Polls: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [optionsStr, setOptionsStr] = useState(''); // Comma separated for simplicity
   const [isAnonymous, setIsAnonymous] = useState(false);
+
+  // Permissions Check: Strictly RESPONSIBLE can manage. Admin observes. Student reads.
+  const canManage = user?.role === Role.RESPONSIBLE;
 
   const openCreate = () => {
     setEditingId(null);
@@ -69,7 +73,7 @@ export const Polls: React.FC = () => {
           </h1>
           <p className="text-[#5D4037] dark:text-[#A1887F] mt-2 font-bold text-base md:text-lg">La voix de la classe compte.</p>
         </div>
-        {(user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN) && (
+        {canManage && (
           <button 
             onClick={openCreate}
             className="w-full md:w-auto btn-primary text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition shadow-orange-200 flex items-center justify-center gap-2 active:scale-95 uppercase tracking-wide"
@@ -115,8 +119,15 @@ export const Polls: React.FC = () => {
                       <span className="text-xs font-bold text-[#8D6E63] dark:text-[#A1887F]">• {totalVotes} votes</span>
                    </div>
                 </div>
-                {(user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN) && (
+                {canManage && (
                   <div className="flex gap-2 w-full md:w-auto">
+                    <button 
+                      onClick={() => shareResource('POLL', poll)} 
+                      className="flex-1 md:flex-none justify-center text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 p-3 rounded-xl transition border border-emerald-100 dark:border-emerald-800 active:scale-95"
+                      title="Envoyer par mail"
+                    >
+                      <Send className="w-5 h-5" />
+                    </button>
                     <button onClick={() => openEdit(poll)} className="flex-1 md:flex-none justify-center text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 p-3 rounded-xl transition border border-indigo-100 dark:border-indigo-800 active:scale-95">
                       <Pencil className="w-5 h-5" />
                     </button>
@@ -204,7 +215,7 @@ export const Polls: React.FC = () => {
       </div>
 
       {/* Modal */}
-      {isModalOpen && (
+      {isModalOpen && canManage && (
         <div className="fixed inset-0 bg-[#2D1B0E]/80 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#2D1B0E] rounded-t-3xl md:rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden border-t-4 md:border-4 border-[#7C2D12]">
             <div className="p-5 md:p-6 border-b-2 border-slate-100 dark:border-[#431407] flex justify-between items-center pattern-bogolan text-white shrink-0">
