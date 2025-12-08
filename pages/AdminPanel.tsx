@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User, ClassGroup } from '../types';
-import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X, Copy, Check, Mail, Calendar } from 'lucide-react';
+import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X, Copy, Check, Mail, Calendar, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from '../components/UserAvatar';
@@ -399,7 +399,11 @@ export const AdminPanel: React.FC = () => {
               <div>
                    <h3 className="text-2xl font-black text-[#2D1B0E] dark:text-[#fcece4]">{cls.name}</h3>
                    <p className="text-sm text-[#5D4037] dark:text-[#D6C0B0] mt-2 font-bold">{cls.description}</p>
-                   {cls.email && <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 font-medium">{cls.email}</p>}
+                   {cls.email && (
+                     <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2 font-black flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded">
+                        <Mail className="w-3 h-3" /> {cls.email}
+                     </p>
+                   )}
                    <div className="mt-4 text-xs font-black text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/30 inline-block px-3 py-1.5 rounded uppercase tracking-wider">
                       {users.filter(u => u.classId === cls.id).length} membres
                    </div>
@@ -552,9 +556,21 @@ export const AdminPanel: React.FC = () => {
                     <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-2 uppercase">Description</label>
                     <input placeholder="ex: Promotion 2026" value={classDesc} onChange={e => setClassDesc(e.target.value)} className="w-full bg-[#FFF8F0] dark:bg-[#1a100a] border-2 border-[#D6C0B0] dark:border-[#5D4037] rounded-xl p-4 text-base focus:border-[#EA580C] focus:bg-white dark:focus:bg-[#0f0906] outline-none transition font-bold text-[#2D1B0E] dark:text-[#fcece4]" />
                   </div>
-                  <div>
-                    <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-2 uppercase">Email de la classe (Mailing List)</label>
-                    <input type="email" placeholder="ex: dut2-promo26@ecole.com" value={classEmail} onChange={e => setClassEmail(e.target.value)} className="w-full bg-[#FFF8F0] dark:bg-[#1a100a] border-2 border-[#D6C0B0] dark:border-[#5D4037] rounded-xl p-4 text-base focus:border-[#EA580C] focus:bg-white dark:focus:bg-[#0f0906] outline-none transition font-bold text-[#2D1B0E] dark:text-[#fcece4]" />
+                  
+                  <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800">
+                    <label className="block text-sm font-black text-indigo-900 dark:text-indigo-300 mb-2 uppercase flex items-center gap-2">
+                       <Mail className="w-4 h-4" /> Email de la classe (Mailing List)
+                    </label>
+                    <p className="text-xs text-indigo-700 dark:text-indigo-400 mb-3 font-medium">
+                       Si renseigné, le bouton "Partager / Envoyer" utilisera cette adresse pour envoyer les annonces et ressources à toute la classe en un clic.
+                    </p>
+                    <input 
+                      type="email" 
+                      placeholder="ex: dut2-promo26@ecole.com" 
+                      value={classEmail} 
+                      onChange={e => setClassEmail(e.target.value)} 
+                      className="w-full bg-white dark:bg-[#0f0906] border-2 border-indigo-200 dark:border-indigo-800 rounded-xl p-4 text-base focus:border-indigo-500 outline-none transition font-bold text-[#2D1B0E] dark:text-[#fcece4]" 
+                    />
                   </div>
                   
                   <div className="flex flex-col-reverse md:flex-row gap-3 pt-4">
