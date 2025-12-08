@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, MeetSession } from '../types';
 import { Video, Plus, Trash2, ExternalLink, AlertCircle, Pencil, User, BellRing, X } from 'lucide-react';
-import { format, isBefore, addMinutes } from 'date-fns';
+import { format, isBefore, addMinutes, isAfter } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export const Meet: React.FC = () => {
@@ -91,18 +91,24 @@ export const Meet: React.FC = () => {
         {sortedMeets.map((meet) => {
            const meetDate = new Date(meet.date);
            const now = new Date();
-           const isSoon = isBefore(now, meetDate) && isBefore(addMinutes(now, 30), meetDate) === false;
+           
+           // Logique "Bientôt" : Si la date est dans le futur MAIS dans moins d'une heure
+           const isSoon = isAfter(meetDate, now) && isBefore(meetDate, addMinutes(now, 60));
+           
+           // Logique "En cours" : Si la date est passée MAIS depuis moins d'une heure (durée théorique cours)
            const isLive = isBefore(meetDate, now) && isBefore(now, addMinutes(meetDate, 60));
 
            return (
-            <div key={meet.id} className="bg-white rounded-2xl border-2 border-[#D6C0B0] p-5 md:p-6 flex flex-col md:flex-row items-center gap-6 shadow-sm hover:-translate-y-1 transition group">
+            <div key={meet.id} className={`bg-white rounded-2xl border-2 p-5 md:p-6 flex flex-col md:flex-row items-center gap-6 shadow-sm hover:-translate-y-1 transition group ${isLive || isSoon ? 'border-emerald-400 shadow-md ring-1 ring-emerald-100' : 'border-[#D6C0B0]'}`}>
                
                {/* Date & Time */}
                <div className="w-full md:w-auto flex justify-between md:block items-center border-b-2 md:border-b-0 pb-4 md:pb-0 border-[#D6C0B0] mb-2 md:mb-0 md:min-w-[100px]">
                  <div className="flex flex-col items-center justify-center text-center">
                     <span className="text-sm font-black text-[#8D6E63] uppercase tracking-wide">{format(meetDate, 'MMM', { locale: fr })}</span>
                     <span className="text-3xl md:text-4xl font-black text-[#2D1B0E]">{format(meetDate, 'd')}</span>
-                    <span className="text-xs md:text-sm font-bold text-white bg-[#2D1B0E] px-3 py-1 rounded-full mt-2">{format(meetDate, 'HH:mm')}</span>
+                    <span className={`text-xs md:text-sm font-bold text-white px-3 py-1 rounded-full mt-2 ${isLive ? 'bg-red-500 animate-pulse' : 'bg-[#2D1B0E]'}`}>
+                      {format(meetDate, 'HH:mm')}
+                    </span>
                  </div>
                  
                  {(isSoon || isLive) && (
@@ -124,7 +130,7 @@ export const Meet: React.FC = () => {
                   {(isSoon || isLive) && (
                      <div className="hidden md:inline-flex mt-4 items-center gap-2 bg-red-100 border border-red-200 text-red-800 px-4 py-2 rounded-lg text-xs font-black animate-pulse uppercase tracking-wide">
                         <AlertCircle className="w-4 h-4" />
-                        {isLive ? 'SESSION EN COURS' : 'DÉMARRE DANS QUELQUES INSTANTS'}
+                        {isLive ? 'SESSION EN COURS' : 'DÉMARRE DANS MOINS D\'UNE HEURE'}
                      </div>
                   )}
                </div>
@@ -135,7 +141,9 @@ export const Meet: React.FC = () => {
                    href={meet.link} 
                    target="_blank" 
                    rel="noreferrer" 
-                   className="w-full md:w-auto bg-emerald-600 text-white px-6 py-4 rounded-xl font-black hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-[0_4px_0_#047857] active:translate-y-1 active:shadow-none uppercase tracking-wide"
+                   className={`w-full md:w-auto text-white px-6 py-4 rounded-xl font-black transition flex items-center justify-center gap-2 active:translate-y-1 active:shadow-none uppercase tracking-wide
+                     ${isLive || isSoon ? 'bg-emerald-600 hover:bg-emerald-700 shadow-[0_4px_0_#047857]' : 'bg-slate-700 hover:bg-slate-800 shadow-[0_4px_0_#334155]'}
+                   `}
                  >
                    <span>Rejoindre</span> <ExternalLink className="w-5 h-5" />
                  </a>

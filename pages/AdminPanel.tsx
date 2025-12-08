@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User, ClassGroup } from '../types';
-import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X } from 'lucide-react';
+import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X, Copy, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -10,12 +10,13 @@ export const AdminPanel: React.FC = () => {
     user, users, classes, schoolName, setSchoolName,
     addClass, updateClass, deleteClass, 
     addUser, importUsers, updateUser, deleteUser, 
-    getCurrentClass, auditLogs 
+    getCurrentClass, auditLogs, dismissNotification 
   } = useApp();
   
   const [activeTab, setActiveTab] = useState<'users' | 'classes' | 'logs'>('users');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
   
   // School Name Edit State
   const [isEditingSchoolName, setIsEditingSchoolName] = useState(false);
@@ -66,6 +67,16 @@ export const AdminPanel: React.FC = () => {
     setUserRole(u.role);
     setUserClassId(u.classId || '');
     setIsModalOpen(true);
+  };
+
+  const copyUserInfo = (u: User) => {
+    const uClass = classes.find(c => c.id === u.classId)?.name || 'Sans classe';
+    const text = `📋 FICHE UTILISATEUR\n------------------\nNom : ${u.name}\nEmail : ${u.email}\nRôle : ${u.role}\nClasse : ${uClass}\n------------------\n${schoolName}`;
+    
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedUserId(u.id);
+      setTimeout(() => setCopiedUserId(null), 2000);
+    });
   };
 
   const openEditClass = (c: ClassGroup) => {
@@ -380,6 +391,7 @@ export const AdminPanel: React.FC = () => {
               <tbody className="divide-y divide-[#D6C0B0]">
                 {filteredUsers.map(u => {
                   const uClass = classes.find(c => c.id === u.classId);
+                  const isCopied = copiedUserId === u.id;
                   return (
                     <tr key={u.id} className="hover:bg-orange-50 transition">
                       <td className="p-6">
@@ -398,6 +410,13 @@ export const AdminPanel: React.FC = () => {
                       </td>
                       <td className="p-6 text-[#5D4037] font-bold">{uClass?.name || '-'}</td>
                       <td className="p-6 text-right flex justify-end gap-2">
+                         <button 
+                           onClick={() => copyUserInfo(u)} 
+                           className={`p-2.5 rounded-lg transition border border-transparent ${isCopied ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                           title="Copier les infos"
+                         >
+                           {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                         </button>
                          <button onClick={() => openEditUser(u)} className="text-indigo-600 hover:bg-indigo-50 p-2.5 rounded-lg transition border border-transparent hover:border-indigo-100"><Pencil className="w-4 h-4"/></button>
                          <button onClick={() => deleteUser(u.id)} className="text-slate-400 hover:bg-red-50 hover:text-red-600 p-2.5 rounded-lg transition border border-transparent hover:border-red-100"><Trash2 className="w-4 h-4"/></button>
                       </td>
@@ -412,6 +431,8 @@ export const AdminPanel: React.FC = () => {
           <div className="md:hidden space-y-4">
             {filteredUsers.map(u => {
               const uClass = classes.find(c => c.id === u.classId);
+              const isCopied = copiedUserId === u.id;
+              
               return (
                 <div key={u.id} className="bg-white p-5 rounded-2xl shadow-sm border-2 border-[#D6C0B0]">
                   <div className="flex justify-between items-start mb-3">
@@ -437,11 +458,17 @@ export const AdminPanel: React.FC = () => {
                   </div>
 
                   <div className="flex gap-3">
+                    <button 
+                      onClick={() => copyUserInfo(u)} 
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-black text-sm transition border ${isCopied ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                    >
+                      {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    </button>
                     <button onClick={() => openEditUser(u)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-black text-sm hover:bg-indigo-100 transition border border-indigo-200 active:scale-95">
-                      <Pencil className="w-4 h-4" /> Modifier
+                      <Pencil className="w-4 h-4" />
                     </button>
                     <button onClick={() => deleteUser(u.id)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-700 rounded-xl font-black text-sm hover:bg-red-100 transition border border-red-200 active:scale-95">
-                      <Trash2 className="w-4 h-4" /> Supprimer
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
