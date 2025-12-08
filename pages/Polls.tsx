@@ -1,0 +1,260 @@
+
+import React, { useState } from 'react';
+import { useApp } from '../context/AppContext';
+import { Role, Poll } from '../types';
+import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+
+export const Polls: React.FC = () => {
+  const { user, polls, addPoll, updatePoll, votePoll, deletePoll } = useApp();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Creation State
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [question, setQuestion] = useState('');
+  const [optionsStr, setOptionsStr] = useState(''); // Comma separated for simplicity
+  const [isAnonymous, setIsAnonymous] = useState(false);
+
+  const openCreate = () => {
+    setEditingId(null);
+    setQuestion('');
+    setOptionsStr('');
+    setIsAnonymous(false);
+    setIsModalOpen(true);
+  };
+
+  const openEdit = (poll: Poll) => {
+    setEditingId(poll.id);
+    setQuestion(poll.question);
+    setOptionsStr(poll.options.map(o => o.label).join(', '));
+    setIsAnonymous(poll.isAnonymous);
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const optionsList = optionsStr.split(',').map(s => ({
+      id: Math.random().toString(36).substr(2, 5),
+      label: s.trim(),
+      voterIds: []
+    })).filter(o => o.label.length > 0);
+
+    if (editingId) {
+       updatePoll(editingId, {
+         question,
+         isAnonymous,
+         // Note: Editing options resets votes in this implementation for simplicity
+         options: optionsList 
+       });
+    } else {
+        addPoll({
+          question,
+          type: 'SINGLE',
+          options: optionsList,
+          active: true,
+          isAnonymous
+        });
+    }
+    setIsModalOpen(false);
+  };
+
+  const COLORS = ['#EA580C', '#4F46E5', '#D97706', '#DC2626', '#059669'];
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 md:px-0 pb-12">
+      <div className="flex justify-between items-center mb-10">
+        <div>
+          <h1 className="text-4xl font-black text-[#2D1B0E] flex items-center gap-3 tracking-tight">
+            <span className="bg-purple-100 border-2 border-purple-300 p-2 rounded-xl shadow-[4px_4px_0_#9333EA]"><Vote className="text-purple-700 w-8 h-8" /></span>
+            Sondages
+          </h1>
+          <p className="text-[#5D4037] mt-2 font-bold text-lg">La voix de la classe compte.</p>
+        </div>
+        {(user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN) && (
+          <button 
+            onClick={openCreate}
+            className="btn-primary text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition shadow-orange-200 flex items-center gap-2 active:scale-95 uppercase tracking-wide"
+          >
+            <Plus className="w-5 h-5"/> <span className="hidden md:inline">Nouveau Sondage</span>
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-8">
+        {polls.length === 0 && (
+          <div className="text-center py-20 bg-white rounded-3xl border-4 border-dashed border-[#D6C0B0]">
+             <Vote className="w-20 h-20 mx-auto mb-4 opacity-20 text-[#2D1B0E]" />
+             <p className="font-bold text-xl text-[#8D6E63]">Aucun sondage actif.</p>
+          </div>
+        )}
+        {polls.map(poll => {
+          const totalVotes = poll.options.reduce((acc, curr) => acc + curr.voterIds.length, 0);
+          
+          // Check if user has voted in ANY option of this poll
+          const userVotedOptionId = poll.options.find(opt => opt.voterIds.includes(user?.id || ''))?.id;
+          const hasVoted = !!userVotedOptionId;
+          const canViewResults = hasVoted || user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
+
+          // Prepare data for chart
+          const chartData = poll.options.map(o => ({ ...o, votes: o.voterIds.length }));
+
+          return (
+            <div key={poll.id} className="bg-white rounded-3xl shadow-[0_8px_0_rgba(0,0,0,0.05)] border-2 border-[#D6C0B0] p-6 md:p-8 hover:border-purple-300 transition group">
+              <div className="flex justify-between items-start mb-8">
+                <div className="flex-1 pr-4">
+                   <h3 className="text-2xl font-black text-[#2D1B0E] leading-tight">{poll.question}</h3>
+                   <div className="flex items-center gap-3 mt-4">
+                      {poll.isAnonymous ? (
+                        <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded uppercase font-black border border-slate-200 tracking-wider flex items-center gap-2">
+                           <EyeOff className="w-3 h-3" /> Anonyme
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded uppercase font-black border border-indigo-100 tracking-wider flex items-center gap-2">
+                           <Eye className="w-3 h-3" /> Public
+                        </span>
+                      )}
+                      <span className="text-xs font-bold text-[#8D6E63]">• {totalVotes} votes</span>
+                   </div>
+                </div>
+                {(user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN) && (
+                  <div className="flex flex-col md:flex-row gap-2">
+                    <button onClick={() => openEdit(poll)} className="text-indigo-700 bg-indigo-50 hover:bg-indigo-100 p-3 rounded-xl transition border border-indigo-100">
+                      <Pencil className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => deletePoll(poll.id)} className="text-red-700 bg-red-50 hover:bg-red-100 p-3 rounded-xl transition border border-red-100">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-10">
+                {/* Voting Section */}
+                <div className="space-y-4">
+                  {poll.options.map((opt) => {
+                    const isSelected = opt.id === userVotedOptionId;
+                    const voteCount = opt.voterIds.length;
+                    
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => votePoll(poll.id, opt.id)}
+                        className={`w-full text-left p-5 rounded-2xl border-2 transition-all relative overflow-hidden group ${
+                          isSelected 
+                            ? 'cursor-default border-purple-500 bg-purple-50 text-purple-900 shadow-inner' 
+                            : 'hover:border-purple-400 hover:bg-purple-50 border-[#EFEBE9] text-[#2D1B0E] active:scale-98 shadow-sm hover:shadow-md'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center z-10 relative">
+                          <span className={`font-bold text-lg ${isSelected ? 'flex items-center gap-2' : ''}`}>
+                             {isSelected && <CheckCircle className="w-5 h-5 text-purple-600" />}
+                             {opt.label}
+                          </span>
+                          {canViewResults && (voteCount > 0) && (
+                             <span className="text-xs font-black bg-purple-200 text-purple-900 px-2 py-1 rounded">{Math.round((voteCount / totalVotes) * 100)}%</span>
+                          )}
+                        </div>
+                        {/* Progress bar background */}
+                        {canViewResults && (
+                          <div 
+                            className="absolute left-0 top-0 bottom-0 bg-purple-200/50 z-0 transition-all duration-700 ease-out opacity-50" 
+                            style={{ width: `${(voteCount / totalVotes) * 100}%` }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                  
+                  {hasVoted && (
+                    <p className="text-center text-xs text-purple-600 font-bold mt-2 animate-pulse">
+                       Vous pouvez changer votre choix en cliquant sur une autre option.
+                    </p>
+                  )}
+                </div>
+
+                {/* Results Section */}
+                <div className="min-h-[220px] flex flex-col justify-center items-center bg-[#FFF8F0] rounded-2xl border-2 border-[#EFEBE9] p-6">
+                  {!canViewResults ? (
+                     <div className="text-center text-[#8D6E63]">
+                       <BarChart2 className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                       <p className="font-bold">Votez pour voir les résultats</p>
+                     </div>
+                  ) : totalVotes === 0 ? (
+                    <div className="text-center text-[#8D6E63]">
+                       <p className="font-bold">Aucun vote pour le moment.</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="label" type="category" width={100} tick={{fontSize: 12, fontWeight: 700, fill: '#4B3621'}} />
+                        <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: '2px solid #EFEBE9', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontFamily: 'Inter'}} />
+                        <Bar dataKey="votes" radius={[0, 8, 8, 0]} barSize={24}>
+                          {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-[#2D1B0E]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden border-4 border-[#7C2D12]">
+            <div className="p-6 border-b-2 border-slate-100 flex justify-between items-center pattern-bogolan text-white">
+              <h3 className="font-black text-xl text-white uppercase tracking-wide">
+                {editingId ? 'Modifier Sondage' : 'Nouveau Sondage'}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-full text-white transition">
+                <Plus className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto p-6 md:p-8 bg-white">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Question</label>
+                  <input required type="text" value={question} onChange={e => setQuestion(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-purple-500 focus:bg-white outline-none transition font-bold text-[#2D1B0E]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Options (séparées par virgule)</label>
+                  <textarea required value={optionsStr} onChange={e => setOptionsStr(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-purple-500 focus:bg-white outline-none transition font-bold text-[#2D1B0E]" placeholder="Option 1, Option 2, Option 3" rows={3}/>
+                  {editingId && <p className="text-xs text-red-500 mt-2 font-bold">⚠️ Modifier les options réinitialise les votes.</p>}
+                </div>
+                
+                <div className="flex items-center gap-3 p-4 bg-[#FFF8F0] rounded-xl border-2 border-[#D6C0B0] cursor-pointer hover:border-[#A1887F] transition">
+                   <input 
+                     type="checkbox" 
+                     id="anon"
+                     checked={isAnonymous}
+                     onChange={e => setIsAnonymous(e.target.checked)}
+                     className="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                   />
+                   <label htmlFor="anon" className="text-sm text-[#5D4037] flex items-center gap-2 cursor-pointer font-bold select-none uppercase tracking-wide">
+                      <EyeOff className="w-4 h-4 text-[#8D6E63]" /> Vote Anonyme
+                   </label>
+                </div>
+
+                <div className="flex flex-col-reverse md:flex-row gap-4 pt-6">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-4 rounded-xl font-bold text-[#5D4037] bg-[#EFEBE9] hover:bg-[#D7CCC8] transition border-2 border-transparent">
+                    Annuler
+                  </button>
+                  <button type="submit" className="w-full md:w-2/3 btn-primary text-white py-4 rounded-xl font-black shadow-[0_4px_0_#9A3412] hover:shadow-[0_2px_0_#9A3412] active:translate-y-1 active:shadow-none transition uppercase tracking-wide">
+                    {editingId ? 'Mettre à jour' : 'Lancer le vote'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
