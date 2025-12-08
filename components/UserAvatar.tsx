@@ -19,7 +19,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'md', class
   const baseClasses = `${sizeClasses[size]} rounded-full shadow-sm flex items-center justify-center shrink-0 ${className}`;
 
   if (!user) {
-    return <UserCircle className={`${sizeClasses[size]} text-slate-300 ${className}`} />;
+    return <UserCircle className={`${sizeClasses[size]} text-slate-300 dark:text-slate-600 ${className}`} />;
   }
 
   // 1. Image URL or Base64
@@ -28,7 +28,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'md', class
       <img 
         src={user.avatar} 
         alt={user.name} 
-        className={`${baseClasses} object-cover border-2 border-white bg-white`} 
+        className={`${baseClasses} object-cover border-2 border-white dark:border-[#2D1B0E] bg-white dark:bg-[#2D1B0E]`} 
       />
     );
   } 
@@ -36,7 +36,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'md', class
   // 2. Emoji Avatar
   else if (user.avatar) {
     return (
-      <div className={`${baseClasses} bg-orange-100 border-2 border-orange-200 select-none`}>
+      <div className={`${baseClasses} bg-orange-100 dark:bg-orange-900 border-2 border-orange-200 dark:border-orange-800 select-none`}>
         {user.avatar}
       </div>
     );
@@ -44,7 +44,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'md', class
   
   // 3. Initials Fallback
   return (
-     <div className={`${baseClasses} bg-[#2D1B0E] text-orange-200 border-2 border-orange-800 font-black uppercase select-none`}>
+     <div className={`${baseClasses} bg-[#2D1B0E] dark:bg-[#431407] text-orange-200 border-2 border-orange-800 dark:border-orange-900 font-black uppercase select-none`}>
         {user.name.charAt(0)}
      </div>
   );

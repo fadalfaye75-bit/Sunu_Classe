@@ -19,12 +19,33 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'media', // Automatic dark mode based on system preference
+        theme: {
+          extend: {
+            colors: {
+              // Custom palette aliases if needed
+            }
+          }
+        }
+      }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
       body {
         font-family: 'Inter', sans-serif;
         background-color: #FFF8F0; /* Sable chaud */
         color: #2D1B0E; /* Marron très foncé */
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      /* Dark mode body overrides */
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #1a100a; /* Very dark brown/black */
+          color: #fcece4; /* Light sandy color */
+        }
       }
       
       /* Motif Bogolan simplifié */
@@ -76,21 +97,33 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #A68A75; 
       }
+
+      @media (prefers-color-scheme: dark) {
+        ::-webkit-scrollbar-track {
+          background: #2D1B0E; 
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #5D4037; 
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: #8D6E63; 
+        }
+      }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "date-fns": "https://aistudiocdn.com/date-fns@^4.1.0",
     "date-fns/": "https://aistudiocdn.com/date-fns@^4.1.0/",
+    "date-fns": "https://aistudiocdn.com/date-fns@^4.1.0",
     "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.86.2"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.7",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.86.2",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>

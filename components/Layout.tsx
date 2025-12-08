@@ -142,7 +142,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF8F0] flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-[#FFF8F0] dark:bg-[#1a100a] flex flex-col md:flex-row font-sans transition-colors duration-300">
       
       {/* --- Notification Toast Container --- */}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 pointer-events-none">
@@ -151,7 +151,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
             key={notif.id}
             className={`
               pointer-events-auto transform transition-all duration-300 ease-in-out hover:scale-102 cursor-pointer
-              max-w-sm w-full shadow-2xl rounded-xl border-l-4 p-4 flex items-start gap-3 bg-white
+              max-w-sm w-full shadow-2xl rounded-xl border-l-4 p-4 flex items-start gap-3 bg-white dark:bg-[#2D1B0E]
               ${notif.type === 'SUCCESS' ? 'border-emerald-500 shadow-emerald-900/10' : 
                 notif.type === 'ERROR' ? 'border-red-500 shadow-red-900/10' : 
                 notif.type === 'WARNING' ? 'border-orange-500 shadow-orange-900/10' : 
@@ -168,16 +168,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
              {notif.type === 'INFO' && <Info className="w-6 h-6 text-indigo-500 shrink-0" />}
              <div className="flex-1">
                <h4 className={`font-black text-sm uppercase tracking-wide
-                 ${notif.type === 'SUCCESS' ? 'text-emerald-800' : 
-                   notif.type === 'ERROR' ? 'text-red-800' : 
-                   notif.type === 'WARNING' ? 'text-orange-800' : 
-                   'text-indigo-800'}
+                 ${notif.type === 'SUCCESS' ? 'text-emerald-800 dark:text-emerald-400' : 
+                   notif.type === 'ERROR' ? 'text-red-800 dark:text-red-400' : 
+                   notif.type === 'WARNING' ? 'text-orange-800 dark:text-orange-400' : 
+                   'text-indigo-800 dark:text-indigo-400'}
                `}>
                  {notif.type === 'SUCCESS' ? 'Succès' : notif.type === 'ERROR' ? 'Erreur' : notif.type === 'WARNING' ? 'Attention' : 'Information'}
                </h4>
-               <p className="text-[#5D4037] text-sm font-medium leading-tight mt-1">{notif.message}</p>
+               <p className="text-[#5D4037] dark:text-[#D6C0B0] text-sm font-medium leading-tight mt-1">{notif.message}</p>
              </div>
-             <button onClick={(e) => { e.stopPropagation(); dismissNotification(notif.id); }} className="ml-auto text-slate-300 hover:text-slate-500">
+             <button onClick={(e) => { e.stopPropagation(); dismissNotification(notif.id); }} className="ml-auto text-slate-300 hover:text-slate-500 dark:hover:text-slate-200">
                <X className="w-4 h-4" />
              </button>
           </div>
@@ -210,17 +210,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
         {/* Mobile Notification Dropdown */}
         {isNotifMenuOpen && (
-          <div className="absolute top-full left-0 right-0 bg-white border-b-4 border-[#D6C0B0] shadow-xl max-h-[60vh] overflow-y-auto z-[60]">
-             <div className="p-4 bg-[#FFF8F0] border-b border-[#D6C0B0] flex justify-between items-center">
-                <h4 className="font-black text-[#2D1B0E] uppercase text-sm">Notifications</h4>
+          <div className="absolute top-full left-0 right-0 bg-white dark:bg-[#2D1B0E] border-b-4 border-[#D6C0B0] dark:border-[#5D4037] shadow-xl max-h-[60vh] overflow-y-auto z-[60]">
+             <div className="p-4 bg-[#FFF8F0] dark:bg-[#1a100a] border-b border-[#D6C0B0] dark:border-[#5D4037] flex justify-between items-center">
+                <h4 className="font-black text-[#2D1B0E] dark:text-[#D6C0B0] uppercase text-sm">Notifications</h4>
                 <div className="flex gap-2">
                   {unreadCount > 0 && (
-                    <button onClick={markAllNotificationsAsRead} className="text-xs text-indigo-600 font-bold flex items-center gap-1 hover:underline">
+                    <button onClick={markAllNotificationsAsRead} className="text-xs text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1 hover:underline">
                       <Check className="w-3 h-3" /> Tout lire
                     </button>
                   )}
                   {notificationHistory.length > 0 && (
-                    <button onClick={clearNotificationHistory} className="text-xs text-red-600 font-bold flex items-center gap-1 hover:underline">
+                    <button onClick={clearNotificationHistory} className="text-xs text-red-600 dark:text-red-400 font-bold flex items-center gap-1 hover:underline">
                       <Trash2 className="w-3 h-3" /> Effacer
                     </button>
                   )}
@@ -228,12 +228,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
              </div>
              <div>
                 {notificationHistory.length === 0 ? (
-                  <div className="p-6 text-center text-[#8D6E63] text-sm font-medium">Aucune notification récente.</div>
+                  <div className="p-6 text-center text-[#8D6E63] dark:text-[#A1887F] text-sm font-medium">Aucune notification récente.</div>
                 ) : (
                   notificationHistory.map(notif => (
                     <div 
                       key={notif.id} 
-                      className={`p-4 border-b border-slate-100 flex gap-3 hover:bg-slate-50 transition relative group ${!notif.read ? 'bg-orange-50/40' : 'bg-white'}`}
+                      className={`p-4 border-b border-slate-100 dark:border-slate-800 flex gap-3 hover:bg-slate-50 dark:hover:bg-[#3E2723] transition relative group ${!notif.read ? 'bg-orange-50/40 dark:bg-orange-900/20' : 'bg-white dark:bg-[#2D1B0E]'}`}
                     >
                        <div 
                          onClick={() => handleNotificationClick(notif)}
@@ -245,10 +245,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                             notif.type === 'WARNING' ? 'bg-orange-500' : 'bg-indigo-500'
                          }`} />
                          <div className="flex-1">
-                            <p className={`text-[#2D1B0E] text-sm leading-tight pr-6 ${!notif.read ? 'font-black' : 'font-medium opacity-80'}`}>
+                            <p className={`text-[#2D1B0E] dark:text-[#fcece4] text-sm leading-tight pr-6 ${!notif.read ? 'font-black' : 'font-medium opacity-80'}`}>
                               {notif.message}
                             </p>
-                            <p className="text-[#8D6E63] text-xs mt-1 flex items-center gap-1">
+                            <p className="text-[#8D6E63] dark:text-[#A1887F] text-xs mt-1 flex items-center gap-1">
                                <Clock className="w-3 h-3" /> {notif.timestamp ? formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true, locale: fr }) : 'À l\'instant'}
                             </p>
                          </div>
@@ -273,10 +273,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       <div className={`
         fixed inset-y-0 left-0 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         md:relative md:translate-x-0 transition duration-300 ease-in-out
-        bg-[#2D1B0E] w-72 shadow-2xl z-40 flex flex-col border-r-4 border-[#7C2D12]
+        bg-[#2D1B0E] dark:bg-[#1a100a] dark:border-[#431407] w-72 shadow-2xl z-40 flex flex-col border-r-4 border-[#7C2D12]
       `}>
         {/* Sidebar Header with Pattern */}
-        <div className="p-8 pattern-bogolan text-white hidden md:block border-b-4 border-[#7C2D12] relative overflow-hidden">
+        <div className="p-8 pattern-bogolan text-white hidden md:block border-b-4 border-[#7C2D12] dark:border-[#431407] relative overflow-hidden">
            <div className="relative z-10">
              <h1 className="text-3xl font-black tracking-tight flex items-center gap-2 text-white drop-shadow-md">
                <School className="w-8 h-8 text-orange-300" /> {schoolName}
@@ -299,7 +299,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
            </div>
         </div>
 
-        <nav className="flex-1 py-6 space-y-2 bg-[#2D1B0E]">
+        <nav className="flex-1 py-6 space-y-2 bg-[#2D1B0E] dark:bg-[#1a100a]">
           {filteredNavItems.map((item) => (
             <button
               key={item.id}
@@ -317,9 +317,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
         </nav>
 
         {/* Desktop User Info Bottom */}
-        <div className="p-4 border-t border-orange-900/30 bg-[#1e1008]">
+        <div className="p-4 border-t border-orange-900/30 bg-[#1e1008] dark:bg-[#0f0906]">
            <div 
-             className="hidden md:flex items-center gap-3 mb-4 px-2 cursor-pointer hover:bg-[#2D1B0E] p-2 rounded-lg transition group"
+             className="hidden md:flex items-center gap-3 mb-4 px-2 cursor-pointer hover:bg-[#2D1B0E] dark:hover:bg-[#1a100a] p-2 rounded-lg transition group"
              onClick={() => setIsProfileModalOpen(true)}
            >
               <div className="p-0.5 rounded-full border-2 border-orange-700/50 bg-[#2D1B0E] group-hover:border-orange-500 transition relative">
@@ -344,23 +344,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden h-screen bg-[#FFF8F0] relative">
+      <main className="flex-1 flex flex-col overflow-hidden h-screen bg-[#FFF8F0] dark:bg-[#1a100a] relative transition-colors duration-300">
         {/* Background Texture Overlay */}
         <div className="absolute inset-0 pointer-events-none opacity-[0.05]" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%232D1B0E\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")'}}></div>
 
         {/* Desktop Header */}
-        <header className="hidden md:flex bg-white/90 backdrop-blur-md border-b-2 border-orange-100 h-24 items-center justify-between px-10 shadow-sm z-30 sticky top-0">
+        <header className="hidden md:flex bg-white/90 dark:bg-[#2D1B0E]/90 backdrop-blur-md border-b-2 border-orange-100 dark:border-[#431407] h-24 items-center justify-between px-10 shadow-sm z-30 sticky top-0 transition-colors duration-300">
            <div className="flex items-center gap-4">
              <BackButton />
              <div>
-               <h2 className="font-black text-3xl text-[#2D1B0E] tracking-tight">
+               <h2 className="font-black text-3xl text-[#2D1B0E] dark:text-[#fcece4] tracking-tight">
                  {user?.role === Role.ADMIN ? 'Espace Administration Globale' : (currentClass?.name || 'Tableau de bord')}
                </h2>
                
-               <div className="flex items-center gap-3 text-slate-500 font-medium">
+               <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 font-medium">
                   <span>Année scolaire 2025-2026</span>
-                  <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                  <span className="flex items-center gap-1.5 text-[#EA580C] bg-orange-50 px-2 py-0.5 rounded-lg text-sm font-bold border border-orange-100">
+                  <span className="w-1 h-1 bg-slate-300 dark:bg-slate-600 rounded-full"></span>
+                  <span className="flex items-center gap-1.5 text-[#EA580C] bg-orange-50 dark:bg-orange-900/30 px-2 py-0.5 rounded-lg text-sm font-bold border border-orange-100 dark:border-orange-800/50">
                      <Clock className="w-3.5 h-3.5" />
                      {format(currentTime, 'HH:mm', { locale: fr })}
                   </span>
@@ -371,10 +371,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
            <div className="flex items-center gap-6">
               {/* Notification Bell Desktop */}
               <div className="relative">
-                <button onClick={() => setIsNotifMenuOpen(!isNotifMenuOpen)} className="bg-orange-50 hover:bg-orange-100 p-3 rounded-xl text-[#EA580C] transition border border-orange-100">
+                <button onClick={() => setIsNotifMenuOpen(!isNotifMenuOpen)} className="bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 p-3 rounded-xl text-[#EA580C] transition border border-orange-100 dark:border-orange-800/50">
                   <Bell className="w-6 h-6" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white shadow-sm">
+                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-[#2D1B0E] shadow-sm">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -382,25 +382,25 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                 
                 {/* Desktop Notification Dropdown */}
                 {isNotifMenuOpen && (
-                  <div className="absolute top-full right-0 mt-3 w-80 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border-2 border-[#D6C0B0] overflow-hidden z-[60] origin-top-right">
-                     <div className="p-4 bg-[#FFF8F0] border-b border-[#D6C0B0] flex justify-between items-center">
-                        <h4 className="font-black text-[#2D1B0E] uppercase text-xs tracking-wide">Historique Notifications</h4>
+                  <div className="absolute top-full right-0 mt-3 w-80 bg-white dark:bg-[#2D1B0E] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border-2 border-[#D6C0B0] dark:border-[#5D4037] overflow-hidden z-[60] origin-top-right">
+                     <div className="p-4 bg-[#FFF8F0] dark:bg-[#1a100a] border-b border-[#D6C0B0] dark:border-[#5D4037] flex justify-between items-center">
+                        <h4 className="font-black text-[#2D1B0E] dark:text-[#D6C0B0] uppercase text-xs tracking-wide">Historique Notifications</h4>
                         <div className="flex gap-2">
                            {unreadCount > 0 && (
-                             <button onClick={markAllNotificationsAsRead} className="text-xs text-indigo-600 font-bold flex items-center gap-1 hover:bg-indigo-50 px-2 py-1 rounded transition">
+                             <button onClick={markAllNotificationsAsRead} className="text-xs text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-2 py-1 rounded transition">
                                <Check className="w-3 h-3" /> Tout lire
                              </button>
                            )}
                            {notificationHistory.length > 0 && (
-                             <button onClick={clearNotificationHistory} className="text-xs text-red-600 font-bold flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition">
+                             <button onClick={clearNotificationHistory} className="text-xs text-red-600 dark:text-red-400 font-bold flex items-center gap-1 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded transition">
                                <Trash2 className="w-3 h-3" /> Tout effacer
                              </button>
                            )}
                         </div>
                      </div>
-                     <div className="max-h-[400px] overflow-y-auto">
+                     <div className="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-orange-800 scrollbar-track-transparent">
                         {notificationHistory.length === 0 ? (
-                          <div className="p-8 text-center flex flex-col items-center text-[#8D6E63]">
+                          <div className="p-8 text-center flex flex-col items-center text-[#8D6E63] dark:text-[#A1887F]">
                             <Bell className="w-8 h-8 mb-2 opacity-20" />
                             <span className="text-sm font-bold">Rien à signaler</span>
                           </div>
@@ -408,7 +408,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                           notificationHistory.map(notif => (
                             <div 
                               key={notif.id} 
-                              className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition flex gap-3 relative group ${!notif.read ? 'bg-orange-50/50' : ''}`}
+                              className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-[#3E2723] transition flex gap-3 relative group ${!notif.read ? 'bg-orange-50/50 dark:bg-orange-900/20' : ''}`}
                             >
                                <div 
                                  className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
@@ -422,7 +422,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                                  onClick={() => handleNotificationClick(notif)}
                                  className={`flex-1 ${notif.targetPage ? 'cursor-pointer' : ''}`}
                                >
-                                  <p className={`text-[#2D1B0E] text-sm leading-snug pr-6 ${!notif.read ? 'font-black' : 'font-medium opacity-80'}`}>
+                                  <p className={`text-[#2D1B0E] dark:text-[#fcece4] text-sm leading-snug pr-6 ${!notif.read ? 'font-black' : 'font-medium opacity-80'}`}>
                                     {notif.message}
                                   </p>
                                   <p className="text-slate-400 text-[10px] mt-1 font-bold uppercase tracking-wide">
@@ -432,7 +432,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
                                <button 
                                  onClick={(e) => { e.stopPropagation(); deleteNotification(notif.id); }}
-                                 className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                                 className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg opacity-0 group-hover:opacity-100 transition"
                                  title="Archiver"
                                >
                                   <Archive className="w-4 h-4" />
@@ -446,9 +446,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
               </div>
 
               <span className={`px-4 py-2 rounded-lg text-sm font-black uppercase tracking-wider shadow-[2px_2px_0px_rgba(0,0,0,0.1)] border-2
-                ${user?.role === Role.ADMIN ? 'bg-red-100 text-red-800 border-red-200' : 
-                  user?.role === Role.RESPONSIBLE ? 'bg-indigo-100 text-indigo-800 border-indigo-200' : 
-                  'bg-orange-100 text-orange-800 border-orange-200'}`}>
+                ${user?.role === Role.ADMIN ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800' : 
+                  user?.role === Role.RESPONSIBLE ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-800' : 
+                  'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800'}`}>
                 {getRoleLabel()}
               </span>
            </div>
@@ -462,8 +462,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       {/* --- Profile Avatar Modal --- */}
       {isProfileModalOpen && (
         <div className="fixed inset-0 bg-[#2D1B0E]/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border-4 border-[#7C2D12] overflow-hidden">
-              <div className="p-6 border-b-2 border-slate-100 flex justify-between items-center pattern-bogolan text-white">
+           <div className="bg-white dark:bg-[#2D1B0E] rounded-3xl shadow-2xl w-full max-w-lg flex flex-col border-4 border-[#7C2D12] overflow-hidden">
+              <div className="p-6 border-b-2 border-slate-100 dark:border-[#431407] flex justify-between items-center pattern-bogolan text-white">
                  <h3 className="text-xl font-black uppercase tracking-wide flex items-center gap-2">
                     <UserCircle className="w-6 h-6" /> Personnaliser Profil
                  </h3>
@@ -476,17 +476,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                  <div className="flex flex-col items-center mb-8">
                     <div className="relative mb-4">
                        <UserAvatar user={user} size="xl" />
-                       <div className="absolute bottom-0 right-0 bg-orange-600 rounded-full p-2 border-2 border-white">
+                       <div className="absolute bottom-0 right-0 bg-orange-600 rounded-full p-2 border-2 border-white dark:border-[#2D1B0E]">
                           <Pencil className="w-4 h-4 text-white" />
                        </div>
                     </div>
-                    <h4 className="font-black text-2xl text-[#2D1B0E]">{user?.name}</h4>
-                    <p className="text-[#8D6E63] font-bold">{getRoleLabel()}</p>
+                    <h4 className="font-black text-2xl text-[#2D1B0E] dark:text-[#fcece4]">{user?.name}</h4>
+                    <p className="text-[#8D6E63] dark:text-[#A1887F] font-bold">{getRoleLabel()}</p>
                  </div>
 
                  <div className="space-y-6">
                     <div>
-                       <label className="block text-sm font-black text-[#2D1B0E] mb-3 uppercase tracking-wide">Choisir un avatar</label>
+                       <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-3 uppercase tracking-wide">Choisir un avatar</label>
                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
                           {AVATAR_PRESETS.map((avatar, idx) => (
                              <button 
@@ -495,7 +495,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                                className={`
                                  text-2xl h-14 rounded-xl border-2 flex items-center justify-center transition
                                  hover:scale-110 hover:shadow-md
-                                 ${user?.avatar === avatar ? 'bg-orange-100 border-orange-500 shadow-md scale-105' : 'bg-slate-50 border-slate-200 hover:border-orange-300'}
+                                 ${user?.avatar === avatar ? 'bg-orange-100 dark:bg-orange-900 border-orange-500 shadow-md scale-105' : 'bg-slate-50 dark:bg-[#3E2723] border-slate-200 dark:border-[#5D4037] hover:border-orange-300'}
                                `}
                              >
                                {avatar}
@@ -504,8 +504,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                        </div>
                     </div>
 
-                    <div className="border-t-2 border-slate-100 pt-6">
-                        <label className="block text-sm font-black text-[#2D1B0E] mb-3 uppercase tracking-wide">Ou importer une image</label>
+                    <div className="border-t-2 border-slate-100 dark:border-[#431407] pt-6">
+                        <label className="block text-sm font-black text-[#2D1B0E] dark:text-[#D6C0B0] mb-3 uppercase tracking-wide">Ou importer une image</label>
                         <input 
                            type="file" 
                            accept="image/*" 
@@ -515,7 +515,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                         />
                         <button 
                           onClick={() => fileInputRef.current?.click()}
-                          className="w-full border-2 border-dashed border-[#D6C0B0] bg-[#FFF8F0] p-6 rounded-xl flex flex-col items-center justify-center text-[#8D6E63] hover:border-[#EA580C] hover:text-[#EA580C] hover:bg-orange-50 transition cursor-pointer gap-2"
+                          className="w-full border-2 border-dashed border-[#D6C0B0] dark:border-[#5D4037] bg-[#FFF8F0] dark:bg-[#1a100a] p-6 rounded-xl flex flex-col items-center justify-center text-[#8D6E63] dark:text-[#A1887F] hover:border-[#EA580C] hover:text-[#EA580C] hover:bg-orange-50 dark:hover:bg-[#3E2723] transition cursor-pointer gap-2"
                         >
                            <Upload className="w-8 h-8 opacity-50" />
                            <span className="font-bold text-sm">Cliquez pour importer une photo</span>
