@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard, 
@@ -21,15 +20,15 @@ import {
   Trash2,
   Clock,
   ArrowLeft,
-  Camera,
   Upload,
   Pencil,
   Check,
   Archive
 } from 'lucide-react';
-import { Role, Notification, User } from '../types';
-import { formatDistanceToNow } from 'date-fns';
+import { Role, Notification } from '../types';
+import { formatDistanceToNow, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { UserAvatar } from './UserAvatar';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -60,11 +59,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotifMenuOpen, setIsNotifMenuOpen] = useState(false);
   
+  // Time State
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
   // Profile Modal State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentClass = getCurrentClass();
+
+  // Update clock every minute
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const navItems = [
     { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
@@ -110,43 +118,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       >
         <ArrowLeft className={`${mobile ? 'w-6 h-6' : 'w-5 h-5'}`} />
       </button>
-    );
-  };
-
-  // Helper to render Avatar
-  const UserAvatar = ({ user, size = 'md' }: { user: User | null, size?: 'sm' | 'md' | 'lg' | 'xl' }) => {
-    const sizeClasses = {
-      sm: 'w-8 h-8 text-xs',
-      md: 'w-10 h-10 text-lg',
-      lg: 'w-16 h-16 text-3xl',
-      xl: 'w-24 h-24 text-4xl'
-    };
-    
-    if (!user) return <UserCircle className={sizeClasses[size]} />;
-
-    if (user.avatar && user.avatar.length > 20) {
-      // Base64 or URL
-      return (
-        <img 
-          src={user.avatar} 
-          alt={user.name} 
-          className={`${sizeClasses[size]} rounded-full object-cover border-2 border-white shadow-sm bg-white`} 
-        />
-      );
-    } else if (user.avatar) {
-      // Emoji
-      return (
-        <div className={`${sizeClasses[size]} rounded-full bg-orange-100 border-2 border-orange-200 flex items-center justify-center shadow-sm`}>
-          {user.avatar}
-        </div>
-      );
-    }
-    
-    // Default
-    return (
-       <div className={`${sizeClasses[size]} rounded-full bg-[#2D1B0E] text-orange-200 border-2 border-orange-800 flex items-center justify-center shadow-sm font-black uppercase`}>
-          {user.name.charAt(0)}
-       </div>
     );
   };
 
@@ -385,7 +356,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                <h2 className="font-black text-3xl text-[#2D1B0E] tracking-tight">
                  {user?.role === Role.ADMIN ? 'Espace Administration Globale' : (currentClass?.name || 'Tableau de bord')}
                </h2>
-               <p className="text-slate-500 font-medium">Année scolaire 2024-2025</p>
+               
+               <div className="flex items-center gap-3 text-slate-500 font-medium">
+                  <span>Année scolaire 2025-2026</span>
+                  <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                  <span className="flex items-center gap-1.5 text-[#EA580C] bg-orange-50 px-2 py-0.5 rounded-lg text-sm font-bold border border-orange-100">
+                     <Clock className="w-3.5 h-3.5" />
+                     {format(currentTime, 'HH:mm', { locale: fr })}
+                  </span>
+               </div>
              </div>
            </div>
            
