@@ -1,10 +1,11 @@
 
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Calendar, Video, AlertCircle, TrendingUp, ArrowRight, PieChart as PieChartIcon, BarChart3, Users } from 'lucide-react';
-import { differenceInDays } from 'date-fns';
+import { Calendar, Video, AlertCircle, TrendingUp, ArrowRight, PieChart as PieChartIcon, BarChart3 } from 'lucide-react';
 import { Role } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import { format, isSameWeek } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface DashboardProps {
   onNavigate: (page: string) => void;
@@ -14,11 +15,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { user, users, exams, announcements, polls } = useApp();
 
   const today = new Date();
-  const upcomingExams = exams.filter(e => {
-    const d = new Date(e.date);
-    const diff = differenceInDays(d, today);
-    return diff >= 0 && diff <= 7;
-  });
+  
+  // LOGIQUE EXAMENS : Les 3 prochains à venir
+  const nextExams = exams
+    .filter(e => new Date(e.date) >= new Date(today.setHours(0,0,0,0))) // Examens futurs ou aujourd'hui
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Tri chronologique
+    .slice(0, 3); // Garder les 3 premiers
 
   const urgentAnnouncements = announcements.filter(a => a.urgency === 'URGENT');
   const activePolls = polls.filter(p => p.active);
@@ -26,7 +28,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   // --- STATISTIQUES LOGIC ---
   
   // 1. Calcul Participation Sondages
-  // On considère le nombre d'étudiants dans la classe actuelle
   const classStudentCount = users.filter(u => u.classId === user?.classId && u.role === Role.STUDENT).length || 1;
   const totalPolls = polls.length;
   
@@ -46,7 +47,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     { name: 'Participations', value: participationRate },
     { name: 'Non-participants', value: 100 - participationRate },
   ];
-  const PIE_COLORS = ['#4F46E5', '#E0E7FF']; // Indigo vs Light Indigo
+  const PIE_COLORS = ['#4F46E5', '#E0E7FF'];
 
   // 2. Calcul Répartition Examens par Matière
   const examsBySubject = exams.reduce((acc, exam) => {
@@ -57,7 +58,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const barData = Object.keys(examsBySubject).map(subject => ({
     name: subject.length > 10 ? subject.substring(0, 10) + '...' : subject,
     count: examsBySubject[subject]
-  })).slice(0, 5); // Top 5 subjects
+  })).slice(0, 5);
 
   const isResponsibleOrAdmin = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
 
@@ -72,8 +73,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-[0_6px_0_#D6C0B0] border-2 border-[#D6C0B0] flex items-start justify-between group hover:border-[#EA580C] transition">
           <div>
-            <p className="text-sm font-black text-[#8D6E63] mb-1 uppercase tracking-wide">Examens (7j)</p>
-            <h3 className="text-4xl font-black text-[#2D1B0E]">{upcomingExams.length}</h3>
+            <p className="text-sm font-black text-[#8D6E63] mb-1 uppercase tracking-wide">Prochains Examens</p>
+            <h3 className="text-4xl font-black text-[#2D1B0E]">{nextExams.length}</h3>
           </div>
           <div className="bg-orange-100 p-4 rounded-xl text-orange-600 border-2 border-orange-200 group-hover:bg-orange-600 group-hover:text-white transition">
             <Calendar className="w-6 h-6" />
@@ -138,7 +139,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                         </Pie>
                       </PieChart>
                     </ResponsiveContainer>
-                    {/* Center Text */}
                     <div className="absolute inset-0 flex items-center justify-center flex-col">
                        <span className="text-2xl font-black text-white">{participationRate}%</span>
                     </div>
@@ -194,32 +194,58 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Upcoming Exams Card */}
+        {/* Upcoming Exams Card - Liste des 3 prochains */}
         <div className="bg-white rounded-3xl shadow-sm border-2 border-[#D6C0B0] overflow-hidden">
           <div className="p-6 border-b-2 border-[#D6C0B0] flex justify-between items-center bg-[#FFF8F0]">
-             <h3 className="text-xl font-black text-[#2D1B0E] uppercase tracking-wide">Calendrier des DS</h3>
-             <button onClick={() => onNavigate('ds')} className="text-sm text-indigo-700 font-bold hover:underline">Voir tout</button>
+             <h3 className="text-xl font-black text-[#2D1B0E] uppercase tracking-wide">3 Prochains DS</h3>
+             <button onClick={() => onNavigate('ds')} className="text-sm text-indigo-700 font-bold hover:underline">Calendrier complet</button>
           </div>
           <div className="p-6">
-            {upcomingExams.length > 0 ? (
+            {nextExams.length > 0 ? (
               <div className="space-y-4">
-                {upcomingExams.map(exam => (
-                  <div key={exam.id} className="flex items-center gap-4 p-4 rounded-2xl bg-orange-50 border-2 border-orange-100">
-                    <div className="bg-white p-3 rounded-xl text-center min-w-[4rem] shadow-sm border border-orange-100">
-                      <div className="text-xs text-[#8D6E63] font-black uppercase">{new Date(exam.date).toLocaleDateString('fr-FR', { month: 'short' })}</div>
-                      <div className="text-2xl font-black text-[#EA580C]">{new Date(exam.date).getDate()}</div>
+                {nextExams.map(exam => {
+                  // Vérifier si c'est cette semaine
+                  const isCurrentWeek = isSameWeek(new Date(exam.date), new Date(), { weekStartsOn: 1 });
+                  
+                  return (
+                    <div 
+                      key={exam.id} 
+                      className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-colors ${
+                        isCurrentWeek 
+                          ? 'bg-orange-50 border-orange-200' // Highlight This Week
+                          : 'bg-white border-slate-100 hover:border-orange-100'
+                      }`}
+                    >
+                      <div className={`
+                        p-3 rounded-xl text-center min-w-[4rem] shadow-sm border
+                        ${isCurrentWeek ? 'bg-white border-orange-100 text-[#EA580C]' : 'bg-[#FFF8F0] border-[#D6C0B0] text-[#8D6E63]'}
+                      `}>
+                        <div className="text-xs font-black uppercase">{format(new Date(exam.date), 'MMM', { locale: fr })}</div>
+                        <div className="text-2xl font-black">{new Date(exam.date).getDate()}</div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-black text-[#2D1B0E] text-lg leading-tight">{exam.subject}</h4>
+                          {isCurrentWeek && (
+                            <span className="text-[10px] uppercase font-black bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200 ml-2 whitespace-nowrap">
+                              Cette semaine
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-[#5D4037] font-medium mt-1 flex items-center gap-2">
+                           <span>{format(new Date(exam.date), 'EEEE HH:mm', { locale: fr })}</span>
+                           <span className="w-1 h-1 rounded-full bg-[#D6C0B0]"></span>
+                           <span>{exam.room}</span>
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-black text-[#2D1B0E] text-lg">{exam.subject}</h4>
-                      <p className="text-sm text-[#5D4037] font-medium">{new Date(exam.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} • {exam.room}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-10 text-slate-400">
                 <Calendar className="w-16 h-16 mx-auto mb-4 opacity-10 text-[#2D1B0E]" />
-                <p className="font-bold text-[#8D6E63]">Aucun examen dans les 7 prochains jours.</p>
+                <p className="font-bold text-[#8D6E63]">Aucun examen à venir.</p>
               </div>
             )}
           </div>
