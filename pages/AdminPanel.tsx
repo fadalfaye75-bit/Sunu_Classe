@@ -1,8 +1,7 @@
-
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User, ClassGroup } from '../types';
-import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X, Copy, Check } from 'lucide-react';
+import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X, Copy, Check, Mail, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from '../components/UserAvatar';
@@ -12,10 +11,10 @@ export const AdminPanel: React.FC = () => {
     user, users, classes, schoolName, setSchoolName,
     addClass, updateClass, deleteClass, 
     addUser, importUsers, updateUser, deleteUser, 
-    getCurrentClass, auditLogs, dismissNotification 
+    getCurrentClass, auditLogs, sentEmails, dismissNotification 
   } = useApp();
   
-  const [activeTab, setActiveTab] = useState<'users' | 'classes' | 'logs'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'classes' | 'logs' | 'emails'>('users');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
@@ -254,6 +253,12 @@ export const AdminPanel: React.FC = () => {
             Classes
           </button>
           <button 
+            onClick={() => setActiveTab('emails')}
+            className={`pb-3 px-4 md:px-6 font-black transition whitespace-nowrap text-base md:text-lg flex items-center gap-2 ${activeTab === 'emails' ? 'text-indigo-800 dark:text-indigo-400 border-b-4 border-indigo-800 dark:border-indigo-400' : 'text-[#8D6E63] dark:text-[#A1887F] hover:text-[#5D4037] dark:hover:text-[#D6C0B0]'}`}
+          >
+            <Mail className="w-4 h-4" /> Emails
+          </button>
+          <button 
             onClick={() => setActiveTab('logs')}
             className={`pb-3 px-4 md:px-6 font-black transition whitespace-nowrap text-base md:text-lg flex items-center gap-2 ${activeTab === 'logs' ? 'text-indigo-800 dark:text-indigo-400 border-b-4 border-indigo-800 dark:border-indigo-400' : 'text-[#8D6E63] dark:text-[#A1887F] hover:text-[#5D4037] dark:hover:text-[#D6C0B0]'}`}
           >
@@ -263,7 +268,7 @@ export const AdminPanel: React.FC = () => {
       )}
 
       {/* Buttons Actions (ADMIN ONLY) */}
-      {activeTab !== 'logs' && isAdmin && (
+      {activeTab !== 'logs' && activeTab !== 'emails' && isAdmin && (
         <div className="flex flex-col md:flex-row flex-wrap gap-3 justify-end mb-6">
           {activeTab === 'users' && (
             <>
@@ -327,6 +332,56 @@ export const AdminPanel: React.FC = () => {
                       </td>
                       <td className="p-4 md:p-6 text-[#5D4037] dark:text-[#D6C0B0] font-medium max-w-[200px] truncate">
                          {log.details}
+                      </td>
+                   </tr>
+                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* --- EMAILS TAB (SENT HISTORY) --- */}
+      {activeTab === 'emails' && isAdmin && (
+        <div className="bg-white dark:bg-[#2D1B0E] rounded-2xl shadow-[0_8px_0_rgba(0,0,0,0.05)] border-2 border-[#D6C0B0] dark:border-[#431407] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[600px]">
+              <thead className="bg-[#FFF8F0] dark:bg-[#1a100a] text-[#5D4037] dark:text-[#A1887F] text-xs uppercase font-black tracking-wider border-b-2 border-[#D6C0B0] dark:border-[#431407]">
+                 <tr>
+                    <th className="p-4 md:p-6">Date</th>
+                    <th className="p-4 md:p-6">Type</th>
+                    <th className="p-4 md:p-6">Envoyé par</th>
+                    <th className="p-4 md:p-6">Destinataire</th>
+                    <th className="p-4 md:p-6">Sujet</th>
+                 </tr>
+              </thead>
+              <tbody className="divide-y divide-[#D6C0B0] dark:divide-[#431407]">
+                 {sentEmails.length === 0 && (
+                   <tr><td colSpan={5} className="p-10 text-center text-slate-400 font-bold">Aucun email envoyé pour le moment.</td></tr>
+                 )}
+                 {sentEmails.map((email) => (
+                   <tr key={email.id} className="hover:bg-slate-50 dark:hover:bg-[#3E2723] transition text-sm">
+                      <td className="p-4 md:p-6 font-mono text-[#5D4037] dark:text-[#D6C0B0] font-bold whitespace-nowrap flex items-center gap-2">
+                        <Calendar className="w-3 h-3 opacity-50"/> {format(new Date(email.created_at), 'dd/MM HH:mm', { locale: fr })}
+                      </td>
+                      <td className="p-4 md:p-6">
+                        <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider border shrink-0 ${
+                            email.resource_type === 'ANNOUNCEMENT' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+                            email.resource_type === 'MEET' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                            email.resource_type === 'EXAM' ? 'bg-red-100 text-red-800 border-red-200' :
+                            'bg-purple-100 text-purple-800 border-purple-200'
+                          }`}>
+                          {email.resource_type}
+                        </span>
+                      </td>
+                      <td className="p-4 md:p-6 font-bold text-[#2D1B0E] dark:text-[#fcece4]">
+                         {email.sender_name}
+                      </td>
+                      <td className="p-4 md:p-6 font-medium text-[#5D4037] dark:text-[#D6C0B0]">
+                         {email.recipient_email || 'Inconnu'}
+                      </td>
+                      <td className="p-4 md:p-6 text-[#5D4037] dark:text-[#D6C0B0] font-bold truncate max-w-[250px]">
+                         {email.subject}
                       </td>
                    </tr>
                  ))}

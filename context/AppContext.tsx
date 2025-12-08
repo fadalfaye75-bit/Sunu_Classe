@@ -1,7 +1,8 @@
-
 import React, { createContext, useContext, useState, PropsWithChildren, useMemo, useEffect } from 'react';
-import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption } from '../types';
+import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption, SentEmail } from '../types';
 import { supabase } from '../services/supabaseClient';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface AppContextType {
   user: User | null;
@@ -15,6 +16,7 @@ interface AppContextType {
   meets: MeetSession[];
   exams: Exam[];
   polls: Poll[];
+  sentEmails: SentEmail[];
   
   // Security & UX
   auditLogs: AuditLog[];
@@ -27,7 +29,7 @@ interface AppContextType {
   clearNotificationHistory: () => void;
 
   // Actions
-  login: (email: string) => Promise<boolean>; // Async now
+  login: (email: string) => Promise<boolean>; 
   logout: () => void;
   
   // Content Management (CRUD)
@@ -88,6 +90,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const [allExams, setAllExams] = useState<Exam[]>([]);
   const [allPolls, setAllPolls] = useState<Poll[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
 
   // Notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -126,7 +129,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
           avatar: u.avatar
         })));
         
-        // Refresh current user if logged in to get latest avatar
+        // Refresh current user if logged in
         if (user) {
           const freshCurrentUser = userData.find(u => u.id === user.id);
           if (freshCurrentUser) {
@@ -138,8 +141,11 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
                 classId: freshCurrentUser.class_id,
                 avatar: freshCurrentUser.avatar
              };
-             setUser(mappedUser);
-             localStorage.setItem('sunuclasse_user', JSON.stringify(mappedUser));
+             // Only update state if something changed to avoid loop
+             if (JSON.stringify(mappedUser) !== JSON.stringify(user)) {
+                setUser(mappedUser);
+                localStorage.setItem('sunuclasse_user', JSON.stringify(mappedUser));
+             }
           }
         }
       }
@@ -168,7 +174,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
           date: m.date,
           teacherName: m.teacher_name,
           classId: m.class_id
-        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+        })));
       }
 
       // 6. Fetch Exams
@@ -183,105 +189,81 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
           notes: e.notes,
           authorId: e.author_id,
           classId: e.class_id
-        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+        })));
       }
 
-      // 7. Fetch Polls (Complex join)
-      // Fetch core polls
-      const { data: pollsData } = await supabase.from('polls').select('*');
-      // Fetch all options
-      const { data: optionsData } = await supabase.from('poll_options').select('*');
-      // Fetch all votes
-      const { data: votesData } = await supabase.from('poll_votes').select('*');
-
-      if (pollsData && optionsData && votesData) {
-        const reconstructedPolls: Poll[] = pollsData.map(p => {
-           // Find options for this poll
-           const myOptions = optionsData.filter(opt => opt.poll_id === p.id);
-           
-           // Map options to include voterIds
-           const mappedOptions: PollOption[] = myOptions.map(opt => {
-              const voters = votesData
-                .filter(v => v.option_id === opt.id)
-                .map(v => v.user_id);
-              return {
-                id: opt.id,
-                label: opt.label,
-                voterIds: voters
-              };
-           });
-
-           return {
-             id: p.id,
-             question: p.question,
-             type: p.type,
-             active: p.active,
-             isAnonymous: p.is_anonymous,
-             classId: p.class_id,
-             createdAt: p.created_at,
-             options: mappedOptions
-           };
-        });
-        setAllPolls(reconstructedPolls);
+      // 7. Fetch Polls
+      const { data: pollData } = await supabase.from('polls').select('*');
+      if (pollData) {
+        setAllPolls(pollData.map(p => ({
+          id: p.id,
+          question: p.question,
+          type: p.type,
+          options: p.options, // Already JSON in Supabase response
+          active: p.active,
+          createdAt: p.created_at,
+          isAnonymous: p.is_anonymous,
+          classId: p.class_id
+        })));
       }
-
-      // 8. Fetch Logs
-      const { data: logData } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(100);
-      if (logData) setAuditLogs(logData);
+      
+      // 8. Fetch Audit Logs
+      const { data: logsData } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50);
+      if (logsData) setAuditLogs(logsData);
+      
+      // 9. Fetch Sent Emails (History)
+      const { data: emailsData } = await supabase.from('sent_emails').select('*').order('created_at', { ascending: false }).limit(50);
+      if (emailsData) setSentEmails(emailsData);
 
     } catch (error) {
-      console.error("Erreur chargement Supabase:", error);
-      showNotification("Erreur de connexion base de données", 'ERROR');
+      console.error("Error refreshing data:", error);
     }
   };
 
-  // --- Helpers ---
+  // --- Filtering based on User Role & Class ---
+  const announcements = useMemo(() => {
+    if (!user) return [];
+    if (user.role === Role.ADMIN) return allAnnouncements;
+    return allAnnouncements.filter(a => a.classId === user.classId);
+  }, [allAnnouncements, user]);
 
-  const logAction = async (action: string, details: string, severity: 'INFO' | 'WARNING' | 'CRITICAL' = 'INFO') => {
-    const newLog = {
-      action,
-      details,
-      author_name: user?.name || 'Système',
-      author_role: user?.role || Role.STUDENT,
-      severity,
-      timestamp: new Date().toISOString()
+  const meets = useMemo(() => {
+    if (!user) return [];
+    if (user.role === Role.ADMIN) return allMeets;
+    return allMeets.filter(m => m.classId === user.classId);
+  }, [allMeets, user]);
+
+  const exams = useMemo(() => {
+    if (!user) return [];
+    if (user.role === Role.ADMIN) return allExams;
+    return allExams.filter(e => e.classId === user.classId);
+  }, [allExams, user]);
+
+  const polls = useMemo(() => {
+    if (!user) return [];
+    if (user.role === Role.ADMIN) return allPolls;
+    return allPolls.filter(p => p.classId === user.classId);
+  }, [allPolls, user]);
+
+  // --- Helper Functions ---
+  const addNotification = (notif: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
+    const newNotif: Notification = {
+      ...notif,
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: new Date().toISOString(),
+      read: false
     };
+    setNotifications(prev => [newNotif, ...prev]);
     
-    // Optimistic Update
-    const displayLog: AuditLog = {
-      id: Math.random().toString(),
-      action,
-      details,
-      author: user?.name || 'Système',
-      role: user?.role || Role.STUDENT,
-      severity,
-      timestamp: newLog.timestamp
-    };
-    setAuditLogs(prev => [displayLog, ...prev]);
+    // Update history (persistent)
+    const updatedHistory = [newNotif, ...notificationHistory].slice(0, 50); // Keep last 50
+    setNotificationHistory(updatedHistory);
+    sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updatedHistory));
 
-    // DB Insert
-    await supabase.from('audit_logs').insert([newLog]);
-  };
-
-  const showNotification = (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING' = 'INFO', targetPage?: string) => {
-    const id = Math.random().toString(36).substr(2, 9);
-    const timestamp = new Date().toISOString();
-    const newNotif: Notification = { id, message, type, timestamp, targetPage, read: false };
-
-    // Active Toast
-    setNotifications(prev => [...prev, newNotif]);
-    
-    // History
-    setNotificationHistory(prev => {
-      const updated = [newNotif, ...prev].slice(0, 50);
-      sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updated));
-      return updated;
-    });
-
-    // Auto dismiss toast
+    // Auto dismiss toast after 5s
     setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 4000);
+      setNotifications(prev => prev.filter(n => n.id !== newNotif.id));
+    }, 5000);
   };
 
   const dismissNotification = (id: string) => {
@@ -289,27 +271,21 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const markNotificationAsRead = (id: string) => {
-    setNotificationHistory(prev => {
-      const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
-      sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updated));
-      return updated;
-    });
+    const updated = notificationHistory.map(n => n.id === id ? { ...n, read: true } : n);
+    setNotificationHistory(updated);
+    sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updated));
   };
 
   const markAllNotificationsAsRead = () => {
-    setNotificationHistory(prev => {
-      const updated = prev.map(n => ({ ...n, read: true }));
-      sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updated));
-      return updated;
-    });
+    const updated = notificationHistory.map(n => ({ ...n, read: true }));
+    setNotificationHistory(updated);
+    sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updated));
   };
 
   const deleteNotification = (id: string) => {
-    setNotificationHistory(prev => {
-      const updated = prev.filter(n => n.id !== id);
-      sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updated));
-      return updated;
-    });
+    const updated = notificationHistory.filter(n => n.id !== id);
+    setNotificationHistory(updated);
+    sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updated));
   };
 
   const clearNotificationHistory = () => {
@@ -317,41 +293,64 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     sessionStorage.removeItem('sunuclasse_notifs_history');
   };
 
-  const setSchoolName = async (name: string) => {
-    setSchoolNameLocal(name);
-    await supabase.from('app_settings').upsert({ key: 'school_name', value: name });
-    logAction('UPDATE_SETTINGS', `Nom école changé pour : ${name}`);
+  const logAction = async (action: string, details: string, severity: 'INFO' | 'WARNING' | 'CRITICAL' = 'INFO') => {
+    if (!user) return;
+    try {
+      await supabase.from('audit_logs').insert({
+        action,
+        details,
+        author: user.name,
+        role: user.role,
+        severity,
+        timestamp: new Date().toISOString()
+      });
+      // Refresh logs
+      const { data: logsData } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50);
+      if (logsData) setAuditLogs(logsData);
+    } catch (e) {
+      console.error("Failed to log action", e);
+    }
   };
 
-  // --- Auth ---
+  const setSchoolName = async (name: string) => {
+    if (user?.role !== Role.ADMIN) return;
+    try {
+      const { error } = await supabase.from('app_settings').update({ value: name }).eq('key', 'school_name');
+      if (error) throw error;
+      setSchoolNameLocal(name);
+      addNotification({ message: 'Nom de l\'établissement mis à jour.', type: 'SUCCESS' });
+      logAction('UPDATE_SETTINGS', `Nouveau nom: ${name}`);
+    } catch (e) {
+      addNotification({ message: 'Erreur mise à jour paramètres', type: 'ERROR' });
+    }
+  };
 
+  const getCurrentClass = () => {
+    return classes.find(c => c.id === user?.classId);
+  };
+
+  // --- AUTH ACTIONS ---
   const login = async (email: string) => {
     try {
-      const { data, error } = await supabase
+      const { data: users, error } = await supabase
         .from('users')
         .select('*')
-        .ilike('email', email) // Case insensitive
+        .eq('email', email)
         .single();
-      
-      if (error || !data) {
-        showNotification("Email introuvable.", 'ERROR');
-        return false;
-      }
 
-      const mappedUser: User = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        classId: data.class_id,
-        avatar: data.avatar
+      if (error || !users) return false;
+
+      const loggedUser = {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        classId: users.class_id,
+        avatar: users.avatar
       };
 
-      setUser(mappedUser);
-      localStorage.setItem('sunuclasse_user', JSON.stringify(mappedUser));
-      
-      logAction('USER_LOGIN', `Connexion de ${mappedUser.name}`);
-      showNotification(`Bon retour, ${mappedUser.name} !`, 'SUCCESS');
+      setUser(loggedUser);
+      localStorage.setItem('sunuclasse_user', JSON.stringify(loggedUser));
       return true;
     } catch (e) {
       console.error(e);
@@ -360,463 +359,437 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const logout = () => {
-    if (user) {
-      logAction('USER_LOGOUT', `Déconnexion de ${user.name}`);
-    }
     setUser(null);
     localStorage.removeItem('sunuclasse_user');
-    showNotification("Vous avez été déconnecté.", 'INFO');
   };
 
-  // --- Data Access ---
-
-  const filterByClass = <T extends { classId: string }>(items: T[]) => {
-    if (!user) return [];
-    if (user.role === Role.ADMIN) return items;
-    return items.filter(i => i.classId === user.classId);
-  };
-
-  const announcements = useMemo(() => filterByClass(allAnnouncements), [allAnnouncements, user]);
-  const meets = useMemo(() => filterByClass(allMeets), [allMeets, user]);
-  const exams = useMemo(() => filterByClass(allExams), [allExams, user]);
-  const polls = useMemo(() => filterByClass(allPolls), [allPolls, user]);
-
-  const getCurrentClass = () => {
-    if (!user?.classId) return undefined;
-    return classes.find(c => c.id === user.classId);
-  };
-
-  // --- CRUD Actions (Async with Supabase) ---
-
+  // --- CONTENT ACTIONS ---
+  
   const addAnnouncement = async (item: Omit<Announcement, 'id' | 'authorId' | 'classId'>, targetRoles?: Role[]) => {
     if (!user || !user.classId) return;
-    
-    const { data, error } = await supabase.from('announcements').insert([{
-      title: item.title,
-      content: item.content,
-      date: item.date,
-      urgency: item.urgency,
-      author_id: user.id,
-      class_id: user.classId
-    }]).select().single();
-
-    if (error) {
-      showNotification("Erreur lors de la création.", 'ERROR');
-      return;
+    try {
+      const { error } = await supabase.from('announcements').insert({
+        title: item.title,
+        content: item.content,
+        date: item.date,
+        urgency: item.urgency,
+        author_id: user.id,
+        class_id: user.classId
+      });
+      if (error) throw error;
+      
+      await refreshAllData();
+      addNotification({ message: 'Annonce publiée avec succès !', type: 'SUCCESS' });
+      logAction('CREATE_ANNOUNCEMENT', `Titre: ${item.title}`);
+    } catch (e) {
+      addNotification({ message: 'Erreur lors de la publication', type: 'ERROR' });
     }
-
-    const newItem: Announcement = {
-      ...item,
-      id: data.id,
-      authorId: user.id,
-      classId: user.classId
-    };
-    setAllAnnouncements(prev => [newItem, ...prev]);
-    logAction('CREATE_ANNOUNCEMENT', `Annonce créée : "${item.title}"`);
-    showNotification("Annonce publiée.", 'SUCCESS', 'infos');
   };
 
   const updateAnnouncement = async (id: string, item: Partial<Announcement>) => {
-    const { error } = await supabase.from('announcements').update({
-       title: item.title,
-       content: item.content,
-       urgency: item.urgency
-    }).eq('id', id);
-
-    if (error) return showNotification("Erreur mise à jour.", 'ERROR');
-
-    setAllAnnouncements(prev => prev.map(a => a.id === id ? { ...a, ...item } : a));
-    logAction('UPDATE_ANNOUNCEMENT', `Mise à jour annonce ID: ${id}`);
-    showNotification("Annonce mise à jour.", 'SUCCESS', 'infos');
+    try {
+      const { error } = await supabase.from('announcements').update(item).eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Annonce mise à jour.', type: 'SUCCESS' });
+      logAction('UPDATE_ANNOUNCEMENT', `ID: ${id}`);
+    } catch (e) {
+      addNotification({ message: 'Erreur lors de la mise à jour', type: 'ERROR' });
+    }
   };
 
   const deleteAnnouncement = async (id: string) => {
-    const { error } = await supabase.from('announcements').delete().eq('id', id);
-    if (error) return showNotification("Erreur suppression.", 'ERROR');
-
-    setAllAnnouncements(prev => prev.filter(a => a.id !== id));
-    logAction('DELETE_ANNOUNCEMENT', `Suppression annonce ID: ${id}`, 'WARNING');
-    showNotification("Annonce supprimée.", 'INFO', 'infos');
+    try {
+      const { error } = await supabase.from('announcements').delete().eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Annonce supprimée.', type: 'INFO' });
+      logAction('DELETE_ANNOUNCEMENT', `ID: ${id}`, 'WARNING');
+    } catch (e) {
+      addNotification({ message: 'Erreur lors de la suppression', type: 'ERROR' });
+    }
   };
 
   const addMeet = async (item: Omit<MeetSession, 'id' | 'classId'>, targetRoles?: Role[]) => {
     if (!user || !user.classId) return;
-
-    const { data, error } = await supabase.from('meets').insert([{
-      subject: item.subject,
-      link: item.link,
-      date: item.date,
-      teacher_name: item.teacherName,
-      class_id: user.classId
-    }]).select().single();
-
-    if (error) return showNotification("Erreur création.", 'ERROR');
-
-    const newItem: MeetSession = { ...item, id: data.id, classId: user.classId };
-    setAllMeets(prev => [...prev, newItem].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    logAction('CREATE_MEET', `Session Meet programmée : "${item.subject}"`);
-    showNotification("Session Meet ajoutée.", 'SUCCESS', 'meet');
+    try {
+      const { error } = await supabase.from('meets').insert({
+        subject: item.subject,
+        link: item.link,
+        date: item.date,
+        teacher_name: item.teacherName,
+        class_id: user.classId
+      });
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Session Meet programmée.', type: 'SUCCESS' });
+      logAction('CREATE_MEET', `Sujet: ${item.subject}`);
+    } catch (e) {
+      addNotification({ message: 'Erreur création Meet', type: 'ERROR' });
+    }
   };
 
   const updateMeet = async (id: string, item: Partial<MeetSession>) => {
-    const { error } = await supabase.from('meets').update({
-       subject: item.subject,
-       teacher_name: item.teacherName,
-       link: item.link,
-       date: item.date
-    }).eq('id', id);
-
-    if (error) return showNotification("Erreur mise à jour.", 'ERROR');
-
-    setAllMeets(prev => prev.map(m => m.id === id ? { ...m, ...item } : m).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    logAction('UPDATE_MEET', `Mise à jour Meet ID: ${id}`);
-    showNotification("Session Meet modifiée.", 'SUCCESS', 'meet');
+    try {
+      const payload: any = { ...item };
+      if (item.teacherName) {
+         payload.teacher_name = item.teacherName;
+         delete payload.teacherName;
+      }
+      const { error } = await supabase.from('meets').update(payload).eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Meet mis à jour.', type: 'SUCCESS' });
+    } catch (e) {
+      addNotification({ message: 'Erreur mise à jour Meet', type: 'ERROR' });
+    }
   };
 
   const deleteMeet = async (id: string) => {
-    const { error } = await supabase.from('meets').delete().eq('id', id);
-    if (error) return showNotification("Erreur suppression.", 'ERROR');
-
-    setAllMeets(prev => prev.filter(m => m.id !== id));
-    logAction('DELETE_MEET', `Suppression Meet ID: ${id}`, 'WARNING');
-    showNotification("Session Meet annulée.", 'INFO', 'meet');
+    try {
+      const { error } = await supabase.from('meets').delete().eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Meet supprimé.', type: 'INFO' });
+      logAction('DELETE_MEET', `ID: ${id}`, 'WARNING');
+    } catch (e) {
+      addNotification({ message: 'Erreur suppression Meet', type: 'ERROR' });
+    }
   };
 
   const addExam = async (item: Omit<Exam, 'id' | 'authorId' | 'classId'>, targetRoles?: Role[]) => {
     if (!user || !user.classId) return;
-
-    const { data, error } = await supabase.from('exams').insert([{
-      subject: item.subject,
-      date: item.date,
-      duration_minutes: item.durationMinutes,
-      room: item.room,
-      notes: item.notes,
-      author_id: user.id,
-      class_id: user.classId
-    }]).select().single();
-
-    if (error) return showNotification("Erreur création.", 'ERROR');
-
-    const newItem: Exam = { ...item, id: data.id, authorId: user.id, classId: user.classId };
-    setAllExams(prev => [...prev, newItem].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    logAction('CREATE_EXAM', `Examen programmé : "${item.subject}"`, 'WARNING');
-    showNotification("Examen programmé.", 'SUCCESS', 'ds');
+    try {
+      const { error } = await supabase.from('exams').insert({
+        subject: item.subject,
+        date: item.date,
+        duration_minutes: item.durationMinutes,
+        room: item.room,
+        notes: item.notes,
+        author_id: user.id,
+        class_id: user.classId
+      });
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Examen planifié.', type: 'SUCCESS', targetPage: 'ds' });
+      logAction('CREATE_EXAM', `Sujet: ${item.subject}`);
+    } catch (e) {
+      addNotification({ message: 'Erreur planification Examen', type: 'ERROR' });
+    }
   };
 
   const updateExam = async (id: string, item: Partial<Exam>) => {
-    const { error } = await supabase.from('exams').update({
-       subject: item.subject,
-       date: item.date,
-       duration_minutes: item.durationMinutes,
-       room: item.room,
-       notes: item.notes
-    }).eq('id', id);
-
-    if (error) return showNotification("Erreur mise à jour.", 'ERROR');
-
-    setAllExams(prev => prev.map(e => e.id === id ? { ...e, ...item } : e).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    logAction('UPDATE_EXAM', `Mise à jour Examen ID: ${id}`);
-    showNotification("Examen mis à jour.", 'SUCCESS', 'ds');
+    try {
+      const payload: any = { ...item };
+      if (item.durationMinutes) {
+        payload.duration_minutes = item.durationMinutes;
+        delete payload.durationMinutes;
+      }
+      const { error } = await supabase.from('exams').update(payload).eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Examen mis à jour.', type: 'SUCCESS' });
+    } catch (e) {
+      addNotification({ message: 'Erreur mise à jour Examen', type: 'ERROR' });
+    }
   };
 
   const deleteExam = async (id: string) => {
-    const { error } = await supabase.from('exams').delete().eq('id', id);
-    if (error) return showNotification("Erreur suppression.", 'ERROR');
-
-    setAllExams(prev => prev.filter(e => e.id !== id));
-    logAction('DELETE_EXAM', `Suppression Examen ID: ${id}`, 'CRITICAL');
-    showNotification("Examen supprimé.", 'WARNING', 'ds');
+    try {
+      const { error } = await supabase.from('exams').delete().eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Examen supprimé.', type: 'INFO' });
+      logAction('DELETE_EXAM', `ID: ${id}`, 'WARNING');
+    } catch (e) {
+      addNotification({ message: 'Erreur suppression Examen', type: 'ERROR' });
+    }
   };
-
-  // --- Polls Logic (Tricky relation handling) ---
 
   const addPoll = async (item: Omit<Poll, 'id' | 'createdAt' | 'classId'>) => {
     if (!user || !user.classId) return;
-
-    // 1. Create Poll
-    const { data: pollData, error: pollError } = await supabase.from('polls').insert([{
-      question: item.question,
-      type: item.type,
-      is_anonymous: item.isAnonymous,
-      active: item.active,
-      class_id: user.classId
-    }]).select().single();
-
-    if (pollError || !pollData) return showNotification("Erreur création sondage.", 'ERROR');
-
-    // 2. Create Options
-    const optionsToInsert = item.options.map(opt => ({
-      poll_id: pollData.id,
-      label: opt.label
-    }));
-
-    const { data: optionsData, error: optError } = await supabase.from('poll_options').insert(optionsToInsert).select();
-    
-    if (optError) return showNotification("Erreur création options.", 'ERROR');
-
-    // Reconstruct local state
-    const newOptions: PollOption[] = optionsData.map(o => ({
-      id: o.id,
-      label: o.label,
-      voterIds: []
-    }));
-
-    const newPoll: Poll = {
-      id: pollData.id,
-      question: item.question,
-      type: item.type,
-      active: item.active,
-      isAnonymous: item.isAnonymous,
-      createdAt: pollData.created_at,
-      classId: user.classId,
-      options: newOptions
-    };
-
-    setAllPolls(prev => [newPoll, ...prev]);
-    logAction('CREATE_POLL', `Sondage créé : "${item.question}"`);
-    showNotification("Sondage publié.", 'SUCCESS', 'polls');
+    try {
+      const { error } = await supabase.from('polls').insert({
+        question: item.question,
+        type: item.type,
+        options: item.options,
+        active: item.active,
+        is_anonymous: item.isAnonymous,
+        class_id: user.classId
+      });
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Sondage lancé !', type: 'SUCCESS', targetPage: 'polls' });
+      logAction('CREATE_POLL', `Question: ${item.question}`);
+    } catch (e) {
+      addNotification({ message: 'Erreur création Sondage', type: 'ERROR' });
+    }
   };
 
   const updatePoll = async (id: string, item: Partial<Poll>) => {
-    const { error } = await supabase.from('polls').update({
-       question: item.question,
-       is_anonymous: item.isAnonymous,
-       active: item.active
-    }).eq('id', id);
-
-    if (error) return showNotification("Erreur mise à jour.", 'ERROR');
-
-    refreshAllData();
-    logAction('UPDATE_POLL', `Mise à jour Sondage ID: ${id}`);
-    showNotification("Sondage modifié.", 'SUCCESS', 'polls');
+    try {
+      const payload: any = { ...item };
+      if (item.isAnonymous !== undefined) {
+         payload.is_anonymous = item.isAnonymous;
+         delete payload.isAnonymous;
+      }
+      const { error } = await supabase.from('polls').update(payload).eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Sondage mis à jour.', type: 'SUCCESS' });
+    } catch (e) {
+      addNotification({ message: 'Erreur mise à jour Sondage', type: 'ERROR' });
+    }
   };
 
   const votePoll = async (pollId: string, optionId: string) => {
     if (!user) return;
-    
-    await supabase.from('poll_votes')
-      .delete()
-      .eq('poll_id', pollId)
-      .eq('user_id', user.id);
+    try {
+      // Logic handled via RPC or simple update. Here assuming optimistic update logic for simplicity
+      const poll = allPolls.find(p => p.id === pollId);
+      if (!poll) return;
 
-    const { error } = await supabase.from('poll_votes').insert([{
-      poll_id: pollId,
-      option_id: optionId,
-      user_id: user.id
-    }]);
-
-    if (error) return showNotification("Erreur vote.", 'ERROR');
-
-    setAllPolls(prev => prev.map(poll => {
-      if (poll.id !== pollId) return poll;
-      
-      const cleanOptions = poll.options.map(opt => ({
+      // Remove user from all other options
+      const newOptions = poll.options.map(opt => ({
         ...opt,
         voterIds: opt.voterIds.filter(id => id !== user.id)
       }));
 
-      const updatedOptions = cleanOptions.map(opt => {
-        if (opt.id === optionId) {
-          return { ...opt, voterIds: [...opt.voterIds, user.id] };
-        }
-        return opt;
-      });
+      // Add to selected
+      const selectedOpt = newOptions.find(o => o.id === optionId);
+      if (selectedOpt) selectedOpt.voterIds.push(user.id);
 
-      return { ...poll, options: updatedOptions };
-    }));
-
-    logAction('VOTE_POLL', `Vote enregistré.`);
-    showNotification("A voté !", 'SUCCESS', 'polls');
+      const { error } = await supabase.from('polls').update({ options: newOptions }).eq('id', pollId);
+      if (error) throw error;
+      
+      await refreshAllData();
+      addNotification({ message: 'Vote enregistré.', type: 'SUCCESS' });
+    } catch (e) {
+      addNotification({ message: 'Erreur lors du vote', type: 'ERROR' });
+    }
   };
 
   const deletePoll = async (id: string) => {
-    const { error } = await supabase.from('polls').delete().eq('id', id);
-    if (error) return showNotification("Erreur suppression.", 'ERROR');
-
-    setAllPolls(prev => prev.filter(p => p.id !== id));
-    logAction('DELETE_POLL', `Suppression Sondage ID: ${id}`, 'WARNING');
-    showNotification("Sondage supprimé.", 'INFO', 'polls');
+    try {
+      const { error } = await supabase.from('polls').delete().eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Sondage supprimé.', type: 'INFO' });
+      logAction('DELETE_POLL', `ID: ${id}`, 'WARNING');
+    } catch (e) {
+      addNotification({ message: 'Erreur suppression Sondage', type: 'ERROR' });
+    }
   };
 
-  // --- Sharing & Emails ---
-
+  // --- SHARE FUNCTION (ENVOI EMAIL) ---
   const shareResource = async (type: 'ANNOUNCEMENT' | 'MEET' | 'EXAM' | 'POLL', item: any) => {
-     // Permission Check: ONLY Responsible can share
-     if (!user || user.role !== Role.RESPONSIBLE) return;
+    if (!user || !user.classId) return;
 
-     // 1. Identify Target Audience
-     const targetClassId = item.classId;
-     const targetClass = classes.find(c => c.id === targetClassId);
-     const targetStudents = allUsers.filter(u => u.classId === targetClassId && u.role === Role.STUDENT);
-     
-     let recipients = [];
-     let useClassEmail = false;
+    try {
+        const currentClass = classes.find(c => c.id === user.classId);
+        // Prioritize class mailing list
+        let targetEmail = currentClass?.email;
+        let recipientDescription = "";
 
-     if (targetClass && targetClass.email && targetClass.email.trim() !== '') {
-       recipients = [targetClass.email];
-       useClassEmail = true;
-     } else {
-       if (targetStudents.length === 0) {
-         showNotification("Aucun étudiant à notifier dans cette classe.", 'WARNING');
-         return;
-       }
-       recipients = targetStudents.map(u => u.email).filter(e => e);
-     }
-     
-     // 2. Prepare Data
-     let subject = "";
-     let body = "";
+        // If string is empty/whitespace, treat as null
+        if (targetEmail && targetEmail.trim() === '') targetEmail = undefined;
 
-     switch (type) {
-       case 'ANNOUNCEMENT':
-         subject = `[${schoolName}] Annonce : ${item.title}`;
-         body = `Bonjour,\n\nUne nouvelle annonce a été publiée :\n\n${item.title}\n${item.content}\n\nUrgence : ${item.urgency}`;
-         break;
-       case 'MEET':
-         subject = `[${schoolName}] Cours en Visio : ${item.subject}`;
-         body = `Bonjour,\n\nUn cours en visio est programmé.\n\nSujet : ${item.subject}\nEnseignant : ${item.teacherName}\nDate : ${new Date(item.date).toLocaleString()}\nLien : ${item.link}`;
-         break;
-       case 'EXAM':
-         subject = `[${schoolName}] Examen : ${item.subject}`;
-         body = `Bonjour,\n\nUn examen a été programmé.\n\nMatière : ${item.subject}\nDate : ${new Date(item.date).toLocaleString()}\nSalle : ${item.room}\nDurée : ${item.durationMinutes} min`;
-         break;
-       case 'POLL':
-         subject = `[${schoolName}] Sondage : ${item.question}`;
-         body = `Bonjour,\n\nUn nouveau sondage nécessite votre avis :\n\n"${item.question}"\n\nConnectez-vous pour voter.`;
-         break;
-     }
+        if (targetEmail) {
+            recipientDescription = `Liste de la classe (${targetEmail})`;
+        } else {
+            // Fallback: we simulate sending to all students
+            const studentsCount = allUsers.filter(u => u.classId === user.classId && u.role === Role.STUDENT).length;
+            targetEmail = ""; // If no class email, we rely on the prompt or let the user fill manually in mail client
+            recipientDescription = `Tous les étudiants (Ouverture Client Mail)`;
+        }
 
-     // 3. Simulate Sending (In a real app, this calls an API)
-     const emailsJoined = recipients.join(',');
-     console.log(`Sending email to: ${emailsJoined}`);
-     console.log(`Via: ${useClassEmail ? 'Mailing List Classe' : 'Liste étudiants individuelle'}`);
-     console.log(`Subject: ${subject}`);
-     console.log(`Body: ${body}`);
+        // GENERATE CONTENT
+        let subject = "";
+        let bodyHtml = "";
+        let bodyText = ""; // Plain text for mailto
+        const footer = `<br><hr><p style="font-size:12px; color:#666;">Envoyé via SunuClasse par ${user.name}</p>`;
 
-     // UX Feedback - Simulate network delay
-     await new Promise(resolve => setTimeout(resolve, 800));
+        switch (type) {
+          case 'ANNOUNCEMENT':
+             subject = `📢 Annonce : ${item.title}`;
+             bodyHtml = `<h2>${item.title}</h2><p><strong>Urgence :</strong> ${item.urgency}</p><div style="background:#f9f9f9; padding:15px; border-left:4px solid orange;">${item.content.replace(/\n/g, '<br>')}</div><p>Date : ${format(new Date(item.date), 'dd/MM/yyyy HH:mm', {locale: fr})}</p>`;
+             bodyText = `ANNONCE: ${item.title}\n\n${item.content}\n\nDate: ${format(new Date(item.date), 'dd/MM/yyyy HH:mm', {locale: fr})}`;
+             break;
+          case 'MEET':
+             subject = `📹 Nouveau cours vidéo : ${item.subject}`;
+             bodyHtml = `<h2>${item.subject}</h2><p><strong>Enseignant :</strong> ${item.teacherName}</p><p><strong>Date :</strong> ${format(new Date(item.date), 'dd/MM/yyyy HH:mm', {locale: fr})}</p><p><a href="${item.link}" style="background:#047857; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;">Rejoindre la réunion</a></p>`;
+             bodyText = `COURS VIDEO: ${item.subject}\nEnseignant: ${item.teacherName}\nDate: ${format(new Date(item.date), 'dd/MM/yyyy HH:mm', {locale: fr})}\n\nLien: ${item.link}`;
+             break;
+          case 'EXAM':
+             subject = `📅 Examen programmé : ${item.subject}`;
+             bodyHtml = `<h2>Examen de ${item.subject}</h2><p><strong>Date :</strong> ${format(new Date(item.date), 'dd/MM/yyyy HH:mm', {locale: fr})}</p><p><strong>Durée :</strong> ${item.durationMinutes} min</p><p><strong>Salle :</strong> ${item.room}</p><p><strong>Notes :</strong> ${item.notes || 'Aucune'}</p>`;
+             bodyText = `EXAMEN: ${item.subject}\nDate: ${format(new Date(item.date), 'dd/MM/yyyy HH:mm', {locale: fr})}\nSalle: ${item.room}\nDurée: ${item.durationMinutes} min\nNotes: ${item.notes || 'Aucune'}`;
+             break;
+          case 'POLL':
+             subject = `📊 Nouveau Sondage : ${item.question}`;
+             bodyHtml = `<h2>Sondage</h2><p><strong>Question :</strong> ${item.question}</p><p>Connectez-vous à SunuClasse pour voter !</p>`;
+             bodyText = `SONDAGE: ${item.question}\n\nConnectez-vous à SunuClasse pour voter !`;
+             break;
+        }
 
-     logAction('SHARE_CONTENT', `Partage email ${type} vers ${useClassEmail ? targetClass?.email : targetStudents.length + ' étudiants'}.`);
-     
-     if (useClassEmail) {
-        showNotification(`Envoyé à la liste : ${targetClass?.email}`, 'SUCCESS');
-     } else {
-        showNotification(`Envoyé à ${targetStudents.length} étudiants.`, 'SUCCESS');
-     }
+        bodyHtml += footer;
+        bodyText += `\n\n--\nEnvoyé via SunuClasse par ${user.name}`;
+
+        // 1. INSERT INTO DATABASE (History)
+        // We do this BEFORE opening mailto to ensure log exists
+        const { error } = await supabase.from('sent_emails').insert({
+           recipient_email: targetEmail || 'Destinataires multiples',
+           subject: subject,
+           body_html: bodyHtml,
+           resource_type: type,
+           sender_name: user.name,
+           class_id: user.classId
+        });
+
+        if (error) throw error;
+        
+        // Refresh to show in Admin Panel immediately
+        const { data: emailsData } = await supabase.from('sent_emails').select('*').order('created_at', { ascending: false }).limit(50);
+        if (emailsData) setSentEmails(emailsData);
+
+        await logAction('SHARE', `Partage ${type} : ${item.title || item.subject || item.question}`);
+        
+        addNotification({
+            message: `Historique enregistré. Ouverture de votre messagerie...`,
+            type: 'SUCCESS'
+        });
+
+        // 2. OPEN MAIL CLIENT
+        const mailtoLink = `mailto:${targetEmail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+        window.location.href = mailtoLink;
+
+    } catch (e: any) {
+        console.error("Erreur envoi email:", e);
+        addNotification({ message: "Erreur lors de l'enregistrement de l'envoi.", type: 'ERROR' });
+    }
   };
 
-  // --- Admin Logic ---
+
+  // --- ADMIN ACTIONS ---
 
   const addClass = async (name: string, description: string, email: string) => {
-    const { data, error } = await supabase.from('classes').insert([{
-      name, description, email
-    }]).select().single();
-
-    if (error) return showNotification("Erreur création classe.", 'ERROR');
-
-    setClasses(prev => [...prev, data]);
-    logAction('CREATE_CLASS', `Création classe : "${name}"`, 'WARNING');
-    showNotification("Nouvelle classe créée.", 'SUCCESS', 'admin');
+    try {
+      const payload: any = { name, description };
+      if (email && email.trim() !== '') payload.email = email.trim();
+      
+      const { error } = await supabase.from('classes').insert(payload);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Classe créée.', type: 'SUCCESS' });
+      logAction('CREATE_CLASS', `Nom: ${name}`);
+    } catch (e: any) {
+      const msg = e.message || JSON.stringify(e);
+      addNotification({ message: `Erreur création classe: ${msg}`, type: 'ERROR' });
+    }
   };
 
   const updateClass = async (id: string, item: Partial<ClassGroup>) => {
-    const { error } = await supabase.from('classes').update(item).eq('id', id);
-    if (error) return showNotification("Erreur mise à jour.", 'ERROR');
+    try {
+      const payload: any = { ...item };
+      // Sanitize empty strings to null for database compatibility
+      if (payload.email === '') payload.email = null;
+      if (payload.description === '') payload.description = null;
+      
+      // Remove undefined values
+      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
 
-    setClasses(prev => prev.map(c => c.id === id ? { ...c, ...item } : c));
-    logAction('UPDATE_CLASS', `Mise à jour classe ID: ${id}`);
-    showNotification("Classe mise à jour.", 'SUCCESS', 'admin');
+      const { error } = await supabase.from('classes').update(payload).eq('id', id);
+      if (error) throw error;
+      
+      await refreshAllData();
+      addNotification({ message: 'Classe mise à jour.', type: 'SUCCESS' });
+      logAction('UPDATE_CLASS', `ID: ${id}`);
+    } catch (e: any) {
+      // Robust error handling to avoid [object Object]
+      console.error("Update Class Error:", e);
+      const msg = e.message || e.details || "Erreur inconnue";
+      addNotification({ message: `Erreur mise à jour classe: ${msg}`, type: 'ERROR' });
+    }
   };
 
   const deleteClass = async (id: string) => {
-    const { error } = await supabase.from('classes').delete().eq('id', id);
-    if (error) return showNotification("Erreur suppression.", 'ERROR');
-
-    setClasses(prev => prev.filter(c => c.id !== id));
-    logAction('DELETE_CLASS', `Suppression classe ID: ${id}`, 'CRITICAL');
-    showNotification("Classe supprimée.", 'WARNING', 'admin');
+    try {
+      const { error } = await supabase.from('classes').delete().eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Classe supprimée.', type: 'WARNING' });
+      logAction('DELETE_CLASS', `ID: ${id}`, 'CRITICAL');
+    } catch (e) {
+      addNotification({ message: 'Impossible de supprimer (contient des données ?)', type: 'ERROR' });
+    }
   };
 
   const addUser = async (userData: Omit<User, 'id'>) => {
-    const { data, error } = await supabase.from('users').insert([{
-      name: userData.name,
-      email: userData.email,
-      role: userData.role,
-      class_id: userData.classId,
-      avatar: userData.avatar
-    }]).select().single();
+    try {
+      const payload: any = {
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        class_id: userData.classId || null // Ensure null if empty string
+      };
 
-    if (error) return showNotification("Erreur création utilisateur.", 'ERROR');
-
-    const newUser: User = { ...userData, id: data.id };
-    setAllUsers(prev => [...prev, newUser]);
-    logAction('CREATE_USER', `Nouvel utilisateur : ${newUser.name}`);
-    showNotification("Utilisateur ajouté.", 'SUCCESS', 'admin');
+      const { error } = await supabase.from('users').insert(payload);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Utilisateur ajouté.', type: 'SUCCESS' });
+      logAction('CREATE_USER', `Email: ${userData.email}`);
+    } catch (e: any) {
+      const msg = e.message || "Erreur";
+      addNotification({ message: `Erreur ajout utilisateur: ${msg}`, type: 'ERROR' });
+    }
   };
 
   const importUsers = async (usersData: Omit<User, 'id'>[]) => {
-    // Prepare data for DB (map to snake_case)
-    const dbData = usersData.map(u => ({
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      class_id: u.classId || null,
-      avatar: u.avatar || null
-    }));
-
-    const { data, error } = await supabase.from('users').insert(dbData).select();
-
-    if (error) {
-      console.error(error);
-      return showNotification("Erreur import CSV.", 'ERROR');
+    try {
+      const payload = usersData.map(u => ({
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        class_id: u.classId || null
+      }));
+      const { error } = await supabase.from('users').insert(payload);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: `${usersData.length} utilisateurs importés.`, type: 'SUCCESS' });
+      logAction('IMPORT_USERS', `Nombre: ${usersData.length}`);
+    } catch (e) {
+      addNotification({ message: 'Erreur import CSV', type: 'ERROR' });
     }
-
-    // Refresh local users list to get IDs
-    const newUsers = data.map(d => ({
-       id: d.id,
-       name: d.name,
-       email: d.email,
-       role: d.role,
-       classId: d.class_id,
-       avatar: d.avatar
-    }));
-    
-    setAllUsers(prev => [...prev, ...newUsers]);
-    logAction('IMPORT_USERS', `Import CSV : ${usersData.length} utilisateurs ajoutés.`);
-    showNotification(`${usersData.length} utilisateurs importés avec succès.`, 'SUCCESS', 'admin');
   };
 
   const updateUser = async (id: string, item: Partial<User>) => {
-    const { error } = await supabase.from('users').update({
-       name: item.name,
-       email: item.email,
-       role: item.role,
-       class_id: item.classId,
-       avatar: item.avatar
-    }).eq('id', id);
-
-    if (error) return showNotification("Erreur mise à jour.", 'ERROR');
-
-    setAllUsers(prev => prev.map(u => u.id === id ? { ...u, ...item } : u));
-    if (user && user.id === id) setUser(prev => prev ? { ...prev, ...item } : null);
-    
-    // Si c'est un changement d'avatar, on notifie différemment
-    if (Object.keys(item).length === 1 && item.avatar) {
-      logAction('UPDATE_AVATAR', `Avatar mis à jour pour ${id}`);
-      showNotification("Profil mis à jour !", 'SUCCESS');
-    } else {
-      logAction('UPDATE_USER', `Mise à jour utilisateur ID: ${id}`);
-      showNotification("Utilisateur mis à jour.", 'SUCCESS', 'admin');
+    try {
+      const payload: any = { ...item };
+      if (item.classId !== undefined) {
+        payload.class_id = item.classId === '' ? null : item.classId;
+        delete payload.classId;
+      }
+      
+      const { error } = await supabase.from('users').update(payload).eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Utilisateur mis à jour.', type: 'SUCCESS' });
+    } catch (e: any) {
+      const msg = e.message || "Erreur";
+      addNotification({ message: `Erreur mise à jour: ${msg}`, type: 'ERROR' });
     }
   };
 
   const deleteUser = async (id: string) => {
-    const { error } = await supabase.from('users').delete().eq('id', id);
-    if (error) return showNotification("Erreur suppression.", 'ERROR');
-
-    setAllUsers(prev => prev.filter(u => u.id !== id));
-    logAction('DELETE_USER', `Suppression utilisateur ID: ${id}`, 'WARNING');
-    showNotification("Utilisateur supprimé.", 'INFO', 'admin');
+    try {
+      const { error } = await supabase.from('users').delete().eq('id', id);
+      if (error) throw error;
+      await refreshAllData();
+      addNotification({ message: 'Utilisateur supprimé.', type: 'INFO' });
+      logAction('DELETE_USER', `ID: ${id}`, 'WARNING');
+    } catch (e) {
+      addNotification({ message: 'Erreur suppression utilisateur', type: 'ERROR' });
+    }
   };
 
   const value = {
@@ -830,6 +803,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     exams,
     polls,
     auditLogs,
+    sentEmails,
     notifications,
     notificationHistory,
     dismissNotification,
@@ -860,7 +834,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     importUsers,
     updateUser,
     deleteUser,
-    getCurrentClass,
+    getCurrentClass
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

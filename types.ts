@@ -74,6 +74,17 @@ export interface Poll {
   classId: string;
 }
 
+export interface SentEmail {
+  id: string;
+  created_at: string;
+  recipient_email: string;
+  subject: string;
+  body_html: string;
+  resource_type: string;
+  sender_name: string;
+  class_id: string;
+}
+
 // --- SECURITY & UX ---
 
 export interface AuditLog {
