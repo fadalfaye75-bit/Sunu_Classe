@@ -1,5 +1,3 @@
-
-
 export enum Role {
   ADMIN = 'ADMIN',            // Super Admin (Gère tout)
   RESPONSIBLE = 'RESPONSIBLE', // Responsable de classe (Gère sa classe)
