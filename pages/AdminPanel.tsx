@@ -1,8 +1,7 @@
-
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User, ClassGroup } from '../types';
-import { Users, School, Trash2, Plus, Shield, Pencil, Save, AlertTriangle, FileText, CheckCircle, Upload, Download } from 'lucide-react';
+import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -184,14 +183,24 @@ export const AdminPanel: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const TinyAvatar = ({ user }: { user: User }) => {
+    if (user.avatar && user.avatar.length > 10) {
+      return <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />;
+    }
+    if (user.avatar) {
+      return <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-sm border border-orange-200">{user.avatar}</div>;
+    }
+    return <UserCircle className="w-8 h-8 text-slate-300" />;
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-0 pb-12">
-      <div className="mb-10">
-        <h1 className="text-4xl font-black text-[#2D1B0E] flex items-center gap-3 tracking-tight">
-          {isAdmin ? <span className="bg-red-100 p-2 rounded-xl border-2 border-red-300 shadow-[4px_4px_0_#F87171]"><Shield className="text-red-600 w-8 h-8" /></span> : <span className="bg-indigo-100 p-2 rounded-xl border-2 border-indigo-300 shadow-[4px_4px_0_#818CF8]"><Users className="text-indigo-600 w-8 h-8" /></span>}
+      <div className="mb-8 md:mb-10">
+        <h1 className="text-3xl md:text-4xl font-black text-[#2D1B0E] flex items-center gap-3 tracking-tight">
+          {isAdmin ? <span className="bg-red-100 p-2 rounded-xl border-2 border-red-300 shadow-[4px_4px_0_#F87171]"><Shield className="text-red-600 w-6 h-6 md:w-8 md:h-8" /></span> : <span className="bg-indigo-100 p-2 rounded-xl border-2 border-indigo-300 shadow-[4px_4px_0_#818CF8]"><Users className="text-indigo-600 w-6 h-6 md:w-8 md:h-8" /></span>}
           {isAdmin ? 'Panneau Admin' : 'Gestion des Étudiants'}
         </h1>
-        <p className="text-[#5D4037] mt-3 font-bold text-lg">
+        <p className="text-[#5D4037] mt-3 font-bold text-base md:text-lg">
            {isAdmin 
              ? 'Gérez l\'ensemble de l\'écosystème scolaire.' 
              : `Gérez les dossiers étudiants de la classe ${currentClass?.name}.`}
@@ -200,25 +209,25 @@ export const AdminPanel: React.FC = () => {
       
       {/* School Name Configuration (Admin Only) */}
       {isAdmin && (
-        <div className="bg-white p-6 rounded-2xl shadow-[0_4px_0_rgba(0,0,0,0.1)] border-2 border-[#D6C0B0] mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
-           <div>
+        <div className="bg-white p-5 md:p-6 rounded-2xl shadow-[0_4px_0_rgba(0,0,0,0.1)] border-2 border-[#D6C0B0] mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+           <div className="text-center md:text-left">
               <h3 className="font-black text-[#2D1B0E] text-lg uppercase">Nom de l'établissement</h3>
               <p className="text-sm text-[#5D4037] font-medium">Ce nom s'affichera sur toute la plateforme.</p>
            </div>
            <div className="flex items-center gap-2 w-full md:w-auto">
               {isEditingSchoolName ? (
-                <>
+                <div className="flex w-full gap-2">
                   <input 
                     value={tempSchoolName}
                     onChange={(e) => setTempSchoolName(e.target.value)}
-                    className="bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl px-4 py-2 font-bold text-[#2D1B0E] outline-none focus:border-[#EA580C]"
+                    className="bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl px-4 py-2 font-bold text-[#2D1B0E] outline-none focus:border-[#EA580C] w-full"
                   />
                   <button onClick={saveSchoolName} className="bg-emerald-100 text-emerald-700 p-2.5 rounded-xl border border-emerald-200 hover:bg-emerald-200 transition">
                     <Save className="w-5 h-5" />
                   </button>
-                </>
+                </div>
               ) : (
-                <div className="flex items-center gap-4 bg-[#FFF8F0] px-6 py-3 rounded-xl border-2 border-[#D6C0B0]">
+                <div className="flex items-center justify-between w-full md:w-auto gap-4 bg-[#FFF8F0] px-6 py-3 rounded-xl border-2 border-[#D6C0B0]">
                    <span className="font-black text-xl text-[#2D1B0E]">{schoolName}</span>
                    <button onClick={() => { setTempSchoolName(schoolName); setIsEditingSchoolName(true); }} className="text-indigo-600 hover:text-indigo-800">
                      <Pencil className="w-4 h-4" />
@@ -230,31 +239,31 @@ export const AdminPanel: React.FC = () => {
       )}
 
       {isAdmin && (
-        <div className="flex gap-4 mb-8 border-b-2 border-[#D6C0B0] overflow-x-auto">
+        <div className="flex gap-4 mb-8 border-b-2 border-[#D6C0B0] overflow-x-auto pb-1 scrollbar-hide">
           <button 
             onClick={() => setActiveTab('users')}
-            className={`pb-4 px-6 font-black transition whitespace-nowrap text-lg ${activeTab === 'users' ? 'text-indigo-800 border-b-4 border-indigo-800' : 'text-[#8D6E63] hover:text-[#5D4037]'}`}
+            className={`pb-3 px-4 md:px-6 font-black transition whitespace-nowrap text-base md:text-lg ${activeTab === 'users' ? 'text-indigo-800 border-b-4 border-indigo-800' : 'text-[#8D6E63] hover:text-[#5D4037]'}`}
           >
             Utilisateurs
           </button>
           <button 
             onClick={() => setActiveTab('classes')}
-            className={`pb-4 px-6 font-black transition whitespace-nowrap text-lg ${activeTab === 'classes' ? 'text-indigo-800 border-b-4 border-indigo-800' : 'text-[#8D6E63] hover:text-[#5D4037]'}`}
+            className={`pb-3 px-4 md:px-6 font-black transition whitespace-nowrap text-base md:text-lg ${activeTab === 'classes' ? 'text-indigo-800 border-b-4 border-indigo-800' : 'text-[#8D6E63] hover:text-[#5D4037]'}`}
           >
             Classes
           </button>
           <button 
             onClick={() => setActiveTab('logs')}
-            className={`pb-4 px-6 font-black transition whitespace-nowrap text-lg flex items-center gap-2 ${activeTab === 'logs' ? 'text-indigo-800 border-b-4 border-indigo-800' : 'text-[#8D6E63] hover:text-[#5D4037]'}`}
+            className={`pb-3 px-4 md:px-6 font-black transition whitespace-nowrap text-base md:text-lg flex items-center gap-2 ${activeTab === 'logs' ? 'text-indigo-800 border-b-4 border-indigo-800' : 'text-[#8D6E63] hover:text-[#5D4037]'}`}
           >
-            <Shield className="w-4 h-4" /> Journal de Sécurité
+            <Shield className="w-4 h-4" /> Journal
           </button>
         </div>
       )}
 
       {/* Buttons Actions */}
       {activeTab !== 'logs' && (
-        <div className="flex flex-wrap gap-3 justify-end mb-6">
+        <div className="flex flex-col md:flex-row flex-wrap gap-3 justify-end mb-6">
           {activeTab === 'users' && (
             <>
               <input 
@@ -264,22 +273,21 @@ export const AdminPanel: React.FC = () => {
                 className="hidden" 
                 onChange={handleFileUpload} 
               />
-              <button onClick={handleDownloadTemplate} className="flex items-center gap-2 bg-white text-indigo-700 border-2 border-indigo-100 px-4 py-3 rounded-xl font-bold hover:bg-indigo-50 transition">
-                <Download className="w-5 h-5" /> <span className="hidden md:inline">Modèle CSV</span>
+              <button onClick={handleDownloadTemplate} className="flex items-center justify-center gap-2 bg-white text-indigo-700 border-2 border-indigo-100 px-4 py-3 rounded-xl font-bold hover:bg-indigo-50 transition active:scale-95">
+                <Download className="w-5 h-5" /> <span className="inline">Modèle CSV</span>
               </button>
-              <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 bg-indigo-100 text-indigo-700 border-2 border-indigo-200 px-4 py-3 rounded-xl font-bold hover:bg-indigo-200 transition">
+              <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 bg-indigo-100 text-indigo-700 border-2 border-indigo-200 px-4 py-3 rounded-xl font-bold hover:bg-indigo-200 transition active:scale-95">
                 <Upload className="w-5 h-5" /> Importer CSV
               </button>
             </>
           )}
-          <button onClick={openCreate} className="btn-primary text-white px-6 py-3 rounded-xl font-bold active:scale-95 transition flex items-center gap-2 uppercase tracking-wide">
+          <button onClick={openCreate} className="btn-primary text-white px-6 py-3 rounded-xl font-bold active:scale-95 transition flex items-center justify-center gap-2 uppercase tracking-wide">
             <Plus className="w-5 h-5" /> 
-            <span className="hidden md:inline">
+            <span className="inline">
               {activeTab === 'classes' && isAdmin 
-                ? 'Ajouter une Classe' 
-                : (isAdmin ? 'Ajouter un Compte' : 'Ajouter un Étudiant')}
+                ? 'Ajouter Classe' 
+                : (isAdmin ? 'Ajouter Compte' : 'Ajouter Étudiant')}
             </span>
-            <span className="md:hidden">Ajouter</span>
           </button>
         </div>
       )}
@@ -288,14 +296,14 @@ export const AdminPanel: React.FC = () => {
       {activeTab === 'logs' && isAdmin && (
         <div className="bg-white rounded-2xl shadow-[0_8px_0_rgba(0,0,0,0.05)] border-2 border-[#D6C0B0] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[600px]">
               <thead className="bg-[#FFF8F0] text-[#5D4037] text-xs uppercase font-black tracking-wider border-b-2 border-[#D6C0B0]">
                  <tr>
-                    <th className="p-6">Heure</th>
-                    <th className="p-6">Type</th>
-                    <th className="p-6">Auteur</th>
-                    <th className="p-6">Action</th>
-                    <th className="p-6">Détails</th>
+                    <th className="p-4 md:p-6">Heure</th>
+                    <th className="p-4 md:p-6">Type</th>
+                    <th className="p-4 md:p-6">Auteur</th>
+                    <th className="p-4 md:p-6">Action</th>
+                    <th className="p-4 md:p-6">Détails</th>
                  </tr>
               </thead>
               <tbody className="divide-y divide-[#D6C0B0]">
@@ -304,21 +312,21 @@ export const AdminPanel: React.FC = () => {
                  )}
                  {auditLogs.map((log) => (
                    <tr key={log.id} className="hover:bg-slate-50 transition text-sm">
-                      <td className="p-6 font-mono text-[#5D4037] font-bold">
+                      <td className="p-4 md:p-6 font-mono text-[#5D4037] font-bold whitespace-nowrap">
                         {format(new Date(log.timestamp), 'dd/MM HH:mm:ss')}
                       </td>
-                      <td className="p-6">
+                      <td className="p-4 md:p-6">
                         {log.severity === 'CRITICAL' && <span className="flex items-center gap-1 text-red-700 font-black"><AlertTriangle className="w-4 h-4"/> CRITIQUE</span>}
                         {log.severity === 'WARNING' && <span className="flex items-center gap-1 text-orange-600 font-bold">ATTENTION</span>}
                         {log.severity === 'INFO' && <span className="flex items-center gap-1 text-indigo-600 font-bold">INFO</span>}
                       </td>
-                      <td className="p-6 font-bold text-[#2D1B0E]">
+                      <td className="p-4 md:p-6 font-bold text-[#2D1B0E]">
                          {log.author} <span className="text-xs font-normal text-slate-400">({log.role})</span>
                       </td>
-                      <td className="p-6 font-black text-[#4B3621] uppercase tracking-wide text-xs">
+                      <td className="p-4 md:p-6 font-black text-[#4B3621] uppercase tracking-wide text-xs">
                          {log.action}
                       </td>
-                      <td className="p-6 text-[#5D4037] font-medium">
+                      <td className="p-4 md:p-6 text-[#5D4037] font-medium max-w-[200px] truncate">
                          {log.details}
                       </td>
                    </tr>
@@ -361,6 +369,7 @@ export const AdminPanel: React.FC = () => {
             <table className="w-full text-left border-collapse">
               <thead className="bg-[#FFF8F0] text-[#5D4037] text-xs uppercase font-black tracking-wider border-b-2 border-[#D6C0B0]">
                 <tr>
+                  <th className="p-6 w-16">Avatar</th>
                   <th className="p-6">Nom</th>
                   <th className="p-6">Email</th>
                   <th className="p-6">Rôle</th>
@@ -373,6 +382,9 @@ export const AdminPanel: React.FC = () => {
                   const uClass = classes.find(c => c.id === u.classId);
                   return (
                     <tr key={u.id} className="hover:bg-orange-50 transition">
+                      <td className="p-6">
+                        <TinyAvatar user={u} />
+                      </td>
                       <td className="p-6 font-bold text-[#2D1B0E]">{u.name}</td>
                       <td className="p-6 text-[#5D4037] font-medium">{u.email}</td>
                       <td className="p-6">
@@ -403,11 +415,14 @@ export const AdminPanel: React.FC = () => {
               return (
                 <div key={u.id} className="bg-white p-5 rounded-2xl shadow-sm border-2 border-[#D6C0B0]">
                   <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-black text-[#2D1B0E] text-lg">{u.name}</h3>
-                      <p className="text-sm text-[#5D4037] font-medium">{u.email}</p>
+                    <div className="flex items-center gap-3">
+                      <TinyAvatar user={u} />
+                      <div className="overflow-hidden">
+                        <h3 className="font-black text-[#2D1B0E] text-lg truncate">{u.name}</h3>
+                        <p className="text-sm text-[#5D4037] font-medium truncate">{u.email}</p>
+                      </div>
                     </div>
-                    <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider border ${
+                    <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider border shrink-0 ${
                         u.role === Role.ADMIN ? 'bg-red-100 text-red-700 border-red-200' :
                         u.role === Role.RESPONSIBLE ? 'bg-purple-100 text-purple-700 border-purple-200' :
                         'bg-emerald-100 text-emerald-700 border-emerald-200'
@@ -422,10 +437,10 @@ export const AdminPanel: React.FC = () => {
                   </div>
 
                   <div className="flex gap-3">
-                    <button onClick={() => openEditUser(u)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-black text-sm hover:bg-indigo-100 transition border border-indigo-200">
+                    <button onClick={() => openEditUser(u)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-black text-sm hover:bg-indigo-100 transition border border-indigo-200 active:scale-95">
                       <Pencil className="w-4 h-4" /> Modifier
                     </button>
-                    <button onClick={() => deleteUser(u.id)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-700 rounded-xl font-black text-sm hover:bg-red-100 transition border border-red-200">
+                    <button onClick={() => deleteUser(u.id)} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-700 rounded-xl font-black text-sm hover:bg-red-100 transition border border-red-200 active:scale-95">
                       <Trash2 className="w-4 h-4" /> Supprimer
                     </button>
                   </div>
@@ -438,35 +453,35 @@ export const AdminPanel: React.FC = () => {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-[#2D1B0E]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden border-4 border-[#7C2D12]">
-            <div className="p-6 border-b-2 border-slate-100 flex justify-between items-center pattern-bogolan text-white">
-              <h3 className="font-black text-xl uppercase tracking-wide">
+        <div className="fixed inset-0 bg-[#2D1B0E]/80 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden border-t-4 md:border-4 border-[#7C2D12]">
+            <div className="p-5 md:p-6 border-b-2 border-slate-100 flex justify-between items-center pattern-bogolan text-white shrink-0">
+              <h3 className="font-black text-lg md:text-xl uppercase tracking-wide">
                 {activeTab === 'classes' && isAdmin
                    ? (editingId ? 'Modifier Classe' : 'Nouvelle Classe') 
                    : (editingId 
                       ? (isAdmin ? 'Modifier Utilisateur' : 'Modifier Étudiant') 
                       : (isAdmin ? 'Nouveau Compte' : 'Ajouter Étudiant'))}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-full text-white transition">
-                <Plus className="w-5 h-5 rotate-45" />
+              <button onClick={() => setIsModalOpen(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-full text-white transition active:scale-90">
+                <X className="w-6 h-6" />
               </button>
             </div>
             
-            <div className="overflow-y-auto p-6 md:p-8 bg-white">
+            <div className="overflow-y-auto p-5 md:p-8 bg-white">
               {activeTab === 'classes' && isAdmin ? (
-                <form onSubmit={handleCreateClass} className="space-y-6">
+                <form onSubmit={handleCreateClass} className="space-y-5 md:space-y-6">
                   <div>
                     <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Nom de la classe</label>
-                    <input required placeholder="ex: DUT Informatique" value={className} onChange={e => setClassName(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E]" />
+                    <input required placeholder="ex: DUT Informatique" value={className} onChange={e => setClassName(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E]" />
                   </div>
                   <div>
                     <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Description</label>
-                    <input placeholder="ex: Promotion 2025" value={classDesc} onChange={e => setClassDesc(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E]" />
+                    <input placeholder="ex: Promotion 2025" value={classDesc} onChange={e => setClassDesc(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E]" />
                   </div>
                   
-                  <div className="flex flex-col-reverse md:flex-row gap-4 pt-6">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-4 rounded-xl font-bold text-[#5D4037] bg-[#EFEBE9] hover:bg-[#D7CCC8] transition border-2 border-transparent">
+                  <div className="flex flex-col-reverse md:flex-row gap-3 pt-4">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-4 rounded-xl font-bold text-[#5D4037] bg-[#EFEBE9] hover:bg-[#D7CCC8] transition border-2 border-transparent active:scale-95">
                       Annuler
                     </button>
                     <button type="submit" className="w-full md:w-2/3 btn-primary text-white py-4 rounded-xl font-black shadow-[0_4px_0_#9A3412] hover:shadow-[0_2px_0_#9A3412] active:translate-y-1 active:shadow-none transition uppercase tracking-wide">
@@ -475,21 +490,21 @@ export const AdminPanel: React.FC = () => {
                   </div>
                 </form>
               ) : (
-                <form onSubmit={handleCreateUser} className="space-y-6">
+                <form onSubmit={handleCreateUser} className="space-y-5 md:space-y-6">
                   <div>
                      <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Nom Complet</label>
-                     <input required placeholder="ex: Jean Dupont" value={userName} onChange={e => setUserName(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E]" />
+                     <input required placeholder="ex: Jean Dupont" value={userName} onChange={e => setUserName(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E]" />
                   </div>
                   <div>
                      <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Adresse Email</label>
-                     <input required type="email" placeholder="email@ecole.com" value={userEmail} onChange={e => setUserEmail(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E]" />
+                     <input required type="email" placeholder="email@ecole.com" value={userEmail} onChange={e => setUserEmail(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E]" />
                   </div>
                   
                   {isAdmin && (
                     <div>
                       <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Rôle</label>
                       <div className="relative">
-                        <select value={userRole} onChange={e => setUserRole(e.target.value as Role)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E] appearance-none">
+                        <select value={userRole} onChange={e => setUserRole(e.target.value as Role)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E] appearance-none">
                           <option value={Role.ADMIN}>Administrateur</option>
                           <option value={Role.RESPONSIBLE}>Responsable</option>
                           <option value={Role.STUDENT}>Étudiant</option>
@@ -503,7 +518,7 @@ export const AdminPanel: React.FC = () => {
                     <div>
                       <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Classe</label>
                        <div className="relative">
-                         <select value={userClassId} onChange={e => setUserClassId(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E] appearance-none">
+                         <select value={userClassId} onChange={e => setUserClassId(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E] appearance-none">
                            <option value="">Sélectionner une classe</option>
                            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                          </select>
@@ -518,8 +533,8 @@ export const AdminPanel: React.FC = () => {
                      </div>
                   )}
 
-                  <div className="flex flex-col-reverse md:flex-row gap-4 pt-6">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-4 rounded-xl font-bold text-[#5D4037] bg-[#EFEBE9] hover:bg-[#D7CCC8] transition border-2 border-transparent">
+                  <div className="flex flex-col-reverse md:flex-row gap-3 pt-4">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-4 rounded-xl font-bold text-[#5D4037] bg-[#EFEBE9] hover:bg-[#D7CCC8] transition border-2 border-transparent active:scale-95">
                       Annuler
                     </button>
                     <button type="submit" className="w-full md:w-2/3 btn-primary text-white py-4 rounded-xl font-black shadow-[0_4px_0_#9A3412] hover:shadow-[0_2px_0_#9A3412] active:translate-y-1 active:shadow-none transition uppercase tracking-wide">

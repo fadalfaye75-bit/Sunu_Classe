@@ -21,6 +21,9 @@ interface AppContextType {
   notifications: Notification[];
   notificationHistory: Notification[];
   dismissNotification: (id: string) => void;
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
+  deleteNotification: (id: string) => void;
   clearNotificationHistory: () => void;
 
   // Actions
@@ -28,15 +31,15 @@ interface AppContextType {
   logout: () => void;
   
   // Content Management (CRUD)
-  addAnnouncement: (item: Omit<Announcement, 'id' | 'authorId' | 'classId'>) => Promise<void>;
+  addAnnouncement: (item: Omit<Announcement, 'id' | 'authorId' | 'classId'>, targetRoles?: Role[]) => Promise<void>;
   updateAnnouncement: (id: string, item: Partial<Announcement>) => Promise<void>;
   deleteAnnouncement: (id: string) => Promise<void>;
   
-  addMeet: (item: Omit<MeetSession, 'id' | 'classId'>) => Promise<void>;
+  addMeet: (item: Omit<MeetSession, 'id' | 'classId'>, targetRoles?: Role[]) => Promise<void>;
   updateMeet: (id: string, item: Partial<MeetSession>) => Promise<void>;
   deleteMeet: (id: string) => Promise<void>;
   
-  addExam: (item: Omit<Exam, 'id' | 'authorId' | 'classId'>) => Promise<void>;
+  addExam: (item: Omit<Exam, 'id' | 'authorId' | 'classId'>, targetRoles?: Role[]) => Promise<void>;
   updateExam: (id: string, item: Partial<Exam>) => Promise<void>;
   deleteExam: (id: string) => Promise<void>;
   
@@ -116,8 +119,26 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
           name: u.name,
           email: u.email,
           role: u.role,
-          classId: u.class_id
+          classId: u.class_id,
+          avatar: u.avatar
         })));
+        
+        // Refresh current user if logged in to get latest avatar
+        if (user) {
+          const freshCurrentUser = userData.find(u => u.id === user.id);
+          if (freshCurrentUser) {
+             const mappedUser = {
+                id: freshCurrentUser.id,
+                name: freshCurrentUser.name,
+                email: freshCurrentUser.email,
+                role: freshCurrentUser.role,
+                classId: freshCurrentUser.class_id,
+                avatar: freshCurrentUser.avatar
+             };
+             setUser(mappedUser);
+             localStorage.setItem('sunuclasse_user', JSON.stringify(mappedUser));
+          }
+        }
       }
 
       // 4. Fetch Announcements
@@ -242,7 +263,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const showNotification = (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING' = 'INFO', targetPage?: string) => {
     const id = Math.random().toString(36).substr(2, 9);
     const timestamp = new Date().toISOString();
-    const newNotif: Notification = { id, message, type, timestamp, targetPage };
+    const newNotif: Notification = { id, message, type, timestamp, targetPage, read: false };
 
     // Active Toast
     setNotifications(prev => [...prev, newNotif]);
@@ -262,6 +283,30 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
 
   const dismissNotification = (id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const markNotificationAsRead = (id: string) => {
+    setNotificationHistory(prev => {
+      const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
+      sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotificationHistory(prev => {
+      const updated = prev.map(n => ({ ...n, read: true }));
+      sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const deleteNotification = (id: string) => {
+    setNotificationHistory(prev => {
+      const updated = prev.filter(n => n.id !== id);
+      sessionStorage.setItem('sunuclasse_notifs_history', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const clearNotificationHistory = () => {
@@ -295,7 +340,8 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
         name: data.name,
         email: data.email,
         role: data.role,
-        classId: data.class_id
+        classId: data.class_id,
+        avatar: data.avatar
       };
 
       setUser(mappedUser);
@@ -339,7 +385,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
 
   // --- CRUD Actions (Async with Supabase) ---
 
-  const addAnnouncement = async (item: Omit<Announcement, 'id' | 'authorId' | 'classId'>) => {
+  const addAnnouncement = async (item: Omit<Announcement, 'id' | 'authorId' | 'classId'>, targetRoles?: Role[]) => {
     if (!user || !user.classId) return;
     
     const { data, error } = await supabase.from('announcements').insert([{
@@ -390,7 +436,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     showNotification("Annonce supprimée.", 'INFO', 'infos');
   };
 
-  const addMeet = async (item: Omit<MeetSession, 'id' | 'classId'>) => {
+  const addMeet = async (item: Omit<MeetSession, 'id' | 'classId'>, targetRoles?: Role[]) => {
     if (!user || !user.classId) return;
 
     const { data, error } = await supabase.from('meets').insert([{
@@ -433,7 +479,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     showNotification("Session Meet annulée.", 'INFO', 'meet');
   };
 
-  const addExam = async (item: Omit<Exam, 'id' | 'authorId' | 'classId'>) => {
+  const addExam = async (item: Omit<Exam, 'id' | 'authorId' | 'classId'>, targetRoles?: Role[]) => {
     if (!user || !user.classId) return;
 
     const { data, error } = await supabase.from('exams').insert([{
@@ -529,10 +575,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const updatePoll = async (id: string, item: Partial<Poll>) => {
-    // Note: This implementation only updates the question/status/anonymity.
-    // Changing options is complex (delete old, add new, lose votes).
-    // For now we assume mostly question update.
-    
     const { error } = await supabase.from('polls').update({
        question: item.question,
        is_anonymous: item.isAnonymous,
@@ -541,7 +583,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
 
     if (error) return showNotification("Erreur mise à jour.", 'ERROR');
 
-    // We refresh all data to be safe regarding options
     refreshAllData();
     logAction('UPDATE_POLL', `Mise à jour Sondage ID: ${id}`);
     showNotification("Sondage modifié.", 'SUCCESS', 'polls');
@@ -550,14 +591,11 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const votePoll = async (pollId: string, optionId: string) => {
     if (!user) return;
     
-    // 1. Check existing vote for this poll and user
-    // Since we support SINGLE vote type primarily, we delete any previous vote for this poll/user
     await supabase.from('poll_votes')
       .delete()
       .eq('poll_id', pollId)
       .eq('user_id', user.id);
 
-    // 2. Insert new vote
     const { error } = await supabase.from('poll_votes').insert([{
       poll_id: pollId,
       option_id: optionId,
@@ -566,7 +604,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
 
     if (error) return showNotification("Erreur vote.", 'ERROR');
 
-    // 3. Update local state manually for speed
     setAllPolls(prev => prev.map(poll => {
       if (poll.id !== pollId) return poll;
       
@@ -631,13 +668,12 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const addUser = async (userData: Omit<User, 'id'>) => {
-    // Note: Creating user in public table. 
-    // In real auth, you would use supabase.auth.signUp
     const { data, error } = await supabase.from('users').insert([{
       name: userData.name,
       email: userData.email,
       role: userData.role,
-      class_id: userData.classId
+      class_id: userData.classId,
+      avatar: userData.avatar
     }]).select().single();
 
     if (error) return showNotification("Erreur création utilisateur.", 'ERROR');
@@ -654,7 +690,8 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
       name: u.name,
       email: u.email,
       role: u.role,
-      class_id: u.classId || null // Explicit null for DB
+      class_id: u.classId || null,
+      avatar: u.avatar || null
     }));
 
     const { data, error } = await supabase.from('users').insert(dbData).select();
@@ -670,7 +707,8 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
        name: d.name,
        email: d.email,
        role: d.role,
-       classId: d.class_id
+       classId: d.class_id,
+       avatar: d.avatar
     }));
     
     setAllUsers(prev => [...prev, ...newUsers]);
@@ -683,7 +721,8 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
        name: item.name,
        email: item.email,
        role: item.role,
-       class_id: item.classId
+       class_id: item.classId,
+       avatar: item.avatar
     }).eq('id', id);
 
     if (error) return showNotification("Erreur mise à jour.", 'ERROR');
@@ -691,8 +730,14 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     setAllUsers(prev => prev.map(u => u.id === id ? { ...u, ...item } : u));
     if (user && user.id === id) setUser(prev => prev ? { ...prev, ...item } : null);
     
-    logAction('UPDATE_USER', `Mise à jour utilisateur ID: ${id}`);
-    showNotification("Utilisateur mis à jour.", 'SUCCESS', 'admin');
+    // Si c'est un changement d'avatar, on notifie différemment
+    if (Object.keys(item).length === 1 && item.avatar) {
+      logAction('UPDATE_AVATAR', `Avatar mis à jour pour ${id}`);
+      showNotification("Profil mis à jour !", 'SUCCESS');
+    } else {
+      logAction('UPDATE_USER', `Mise à jour utilisateur ID: ${id}`);
+      showNotification("Utilisateur mis à jour.", 'SUCCESS', 'admin');
+    }
   };
 
   const deleteUser = async (id: string) => {
@@ -718,6 +763,9 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     notifications,
     notificationHistory,
     dismissNotification,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    deleteNotification,
     clearNotificationHistory,
     login,
     logout,

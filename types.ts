@@ -1,3 +1,4 @@
+
 export enum Role {
   ADMIN = 'ADMIN',            // Super Admin (Gère tout)
   RESPONSIBLE = 'RESPONSIBLE', // Responsable de classe (Gère sa classe)
@@ -16,6 +17,7 @@ export interface User {
   role: Role;
   email: string;
   classId?: string; // Null pour l'Admin global
+  avatar?: string; // URL, Base64 string, or Emoji char
 }
 
 export enum Urgency {
@@ -89,6 +91,7 @@ export interface Notification {
   type: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING';
   timestamp?: string;
   targetPage?: string; // Page vers laquelle rediriger au clic
+  read?: boolean; // État de lecture
 }
 
 export interface AppState {

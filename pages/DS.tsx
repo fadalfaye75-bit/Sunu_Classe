@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Exam } from '../types';
-import { CalendarDays, Clock, MapPin, Trash2, Plus, Download, Pencil, AlertCircle } from 'lucide-react';
+import { CalendarDays, Clock, MapPin, Trash2, Plus, Download, Pencil, AlertCircle, BellRing, X } from 'lucide-react';
 import { format, isSameWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -18,6 +17,9 @@ export const DS: React.FC = () => {
   const [room, setRoom] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Notification Target State
+  const [targetRoles, setTargetRoles] = useState<Role[]>([]);
+
   const openCreate = () => {
     setEditingId(null);
     setSubject('');
@@ -25,6 +27,7 @@ export const DS: React.FC = () => {
     setDuration(60);
     setRoom('');
     setNotes('');
+    setTargetRoles([]);
     setIsModalOpen(true);
   };
 
@@ -35,6 +38,7 @@ export const DS: React.FC = () => {
     setDuration(item.durationMinutes);
     setRoom(item.room);
     setNotes(item.notes || '');
+    setTargetRoles([]);
     setIsModalOpen(true);
   };
 
@@ -51,9 +55,15 @@ export const DS: React.FC = () => {
     if (editingId) {
       updateExam(editingId, payload);
     } else {
-      addExam(payload);
+      addExam(payload, targetRoles.length > 0 ? targetRoles : undefined);
     }
     setIsModalOpen(false);
+  };
+
+  const toggleTargetRole = (role: Role) => {
+    setTargetRoles(prev => 
+      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
+    );
   };
 
   const handleExportCSV = () => {
@@ -83,20 +93,20 @@ export const DS: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-0 pb-12">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-10 gap-4">
         <div>
-          <h1 className="text-4xl font-black text-[#2D1B0E] flex items-center gap-3 tracking-tight">
-             <span className="bg-red-100 border-2 border-red-300 p-2 rounded-xl shadow-[4px_4px_0_#F87171]"><CalendarDays className="text-red-600 w-8 h-8" /></span>
+          <h1 className="text-3xl md:text-4xl font-black text-[#2D1B0E] flex items-center gap-3 tracking-tight">
+             <span className="bg-red-100 border-2 border-red-300 p-2 rounded-xl shadow-[4px_4px_0_#F87171]"><CalendarDays className="text-red-600 w-6 h-6 md:w-8 md:h-8" /></span>
              Examens & DS
           </h1>
-          <p className="text-[#5D4037] mt-2 font-bold text-lg">Calendrier officiel des évaluations.</p>
+          <p className="text-[#5D4037] mt-2 font-bold text-base md:text-lg">Calendrier officiel des évaluations.</p>
         </div>
         
-        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
           {exams.length > 0 && (
              <button
                onClick={handleExportCSV}
-               className="flex-1 md:flex-none justify-center bg-white border-2 border-[#D6C0B0] text-[#5D4037] px-6 py-3 rounded-xl font-bold hover:bg-[#FFF8F0] transition flex items-center gap-2 shadow-sm"
+               className="flex-1 md:flex-none justify-center bg-white border-2 border-[#D6C0B0] text-[#5D4037] px-4 py-3 md:px-6 rounded-xl font-bold hover:bg-[#FFF8F0] transition flex items-center gap-2 shadow-sm active:scale-95"
              >
                <Download className="w-5 h-5" /> <span className="md:hidden">Export</span><span className="hidden md:inline">Exporter</span>
              </button>
@@ -105,19 +115,19 @@ export const DS: React.FC = () => {
           {(user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN) && (
             <button 
               onClick={openCreate}
-              className="flex-1 md:flex-none justify-center btn-primary text-white px-6 py-3 rounded-xl font-bold active:scale-95 transition flex items-center gap-2 uppercase tracking-wide"
+              className="flex-1 md:flex-none justify-center btn-primary text-white px-4 py-3 md:px-6 rounded-xl font-bold active:scale-95 transition flex items-center gap-2 uppercase tracking-wide shadow-md"
             >
-              <Plus className="w-5 h-5" /> Planifier
+              <Plus className="w-5 h-5" /> <span>Planifier</span>
             </button>
           )}
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-[0_10px_0_rgba(0,0,0,0.05)] border-2 border-[#D6C0B0] overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-sm border-2 border-[#D6C0B0] overflow-hidden">
         <div className="grid grid-cols-1 divide-y-2 divide-[#D6C0B0]">
           {exams.length === 0 && (
              <div className="p-16 text-center text-slate-400 flex flex-col items-center">
-               <CalendarDays className="w-20 h-20 opacity-20 text-[#2D1B0E] mb-6" />
+               <CalendarDays className="w-16 h-16 md:w-20 md:h-20 opacity-20 text-[#2D1B0E] mb-6" />
                <p className="font-bold text-xl text-[#8D6E63]">Aucun examen n'est planifié pour le moment.</p>
              </div>
           )}
@@ -126,15 +136,15 @@ export const DS: React.FC = () => {
             const isThisWeek = isSameWeek(examDate, new Date());
 
             return (
-              <div key={exam.id} className="p-6 md:p-8 hover:bg-[#FFF8F0] transition flex flex-col md:flex-row gap-6 md:items-center group">
+              <div key={exam.id} className="p-5 md:p-8 hover:bg-[#FFF8F0] transition flex flex-col md:flex-row gap-6 md:items-center group">
                 {/* Date Box */}
                 <div className="flex items-center gap-4 md:block min-w-[100px]">
                   <div className={`
-                    flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-4 shrink-0 shadow-sm
+                    flex flex-col items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 shrink-0 shadow-sm
                     ${isThisWeek ? 'bg-[#EA580C] border-[#9A3412] text-white shadow-[4px_4px_0_#9A3412]' : 'bg-white border-[#D6C0B0] text-[#5D4037]'}
                   `}>
-                     <span className={`text-sm font-black uppercase ${isThisWeek ? 'text-orange-100' : 'text-[#8D6E63]'}`}>{format(examDate, 'MMM', { locale: fr })}</span>
-                     <span className="text-4xl font-black">{format(examDate, 'd')}</span>
+                     <span className={`text-xs md:text-sm font-black uppercase ${isThisWeek ? 'text-orange-100' : 'text-[#8D6E63]'}`}>{format(examDate, 'MMM', { locale: fr })}</span>
+                     <span className="text-3xl md:text-4xl font-black">{format(examDate, 'd')}</span>
                   </div>
                   <div className="md:hidden">
                     <h3 className="text-xl font-black text-[#2D1B0E] line-clamp-1">{exam.subject}</h3>
@@ -171,23 +181,23 @@ export const DS: React.FC = () => {
 
                 {/* Details Mobile Notes */}
                 {exam.notes && (
-                   <div className="md:hidden text-sm text-[#5D4037] bg-yellow-50 p-4 rounded-xl border-l-4 border-yellow-400 font-medium">
+                   <div className="md:hidden text-sm text-[#5D4037] bg-yellow-50 p-3 rounded-xl border-l-4 border-yellow-400 font-medium">
                       <span className="font-black text-yellow-800 uppercase mr-1">Note:</span> {exam.notes}
                    </div>
                 )}
 
                 {/* Actions */}
                 {(user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN) && (
-                  <div className="flex justify-end gap-3 pt-4 md:pt-0 border-t-2 md:border-t-0 border-[#D6C0B0]">
+                  <div className="grid grid-cols-2 md:flex md:justify-end gap-3 pt-4 md:pt-0 border-t-2 md:border-t-0 border-[#D6C0B0]">
                     <button 
                       onClick={() => openEdit(exam)}
-                      className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition text-sm font-black border-2 border-indigo-100"
+                      className="flex items-center justify-center gap-2 px-4 py-3 text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition text-sm font-black border-2 border-indigo-100 active:scale-95"
                     >
                       <Pencil className="w-4 h-4 md:w-5 md:h-5" /> <span className="md:hidden">Modifier</span>
                     </button>
                     <button 
                       onClick={() => deleteExam(exam.id)}
-                      className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 text-red-800 bg-red-50 hover:bg-red-100 rounded-xl transition text-sm font-black border-2 border-red-100"
+                      className="flex items-center justify-center gap-2 px-4 py-3 text-red-800 bg-red-50 hover:bg-red-100 rounded-xl transition text-sm font-black border-2 border-red-100 active:scale-95"
                     >
                       <Trash2 className="w-4 h-4 md:w-5 md:h-5" /> <span className="md:hidden">Supprimer</span>
                     </button>
@@ -201,26 +211,26 @@ export const DS: React.FC = () => {
 
        {/* Modal */}
        {isModalOpen && (
-        <div className="fixed inset-0 bg-[#2D1B0E]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden border-4 border-[#7C2D12]">
-            <div className="p-6 border-b-2 border-slate-100 flex justify-between items-center pattern-bogolan text-white">
-              <h3 className="text-xl font-black uppercase tracking-wide">
+        <div className="fixed inset-0 bg-[#2D1B0E]/80 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] md:max-h-[85vh] overflow-hidden border-t-4 md:border-4 border-[#7C2D12]">
+            <div className="p-5 md:p-6 border-b-2 border-slate-100 flex justify-between items-center pattern-bogolan text-white shrink-0">
+              <h3 className="text-lg md:text-xl font-black uppercase tracking-wide">
                 {editingId ? 'Modifier DS' : 'Programmer un DS'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-full text-white transition">
-                <Plus className="w-5 h-5 rotate-45" />
+              <button onClick={() => setIsModalOpen(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-full text-white transition active:scale-90">
+                <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="overflow-y-auto p-6 md:p-8 bg-white">
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="overflow-y-auto p-5 md:p-8 bg-white">
+              <form onSubmit={handleSubmit} className="space-y-5 md:space-y-6">
                 <div>
                   <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Matière / Sujet</label>
-                  <input required type="text" value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E]" placeholder="Ex: Mathématiques" />
+                  <input required type="text" value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold text-[#2D1B0E]" placeholder="Ex: Mathématiques" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Date & Heure</label>
-                    <input required type="datetime-local" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 text-sm focus:border-[#EA580C] outline-none transition font-bold" />
+                    <input required type="datetime-local" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 text-sm focus:border-[#EA580C] outline-none transition font-bold" />
                   </div>
                   <div>
                     <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Durée (Heures)</label>
@@ -230,7 +240,7 @@ export const DS: React.FC = () => {
                       step="0.5"
                       value={duration / 60} 
                       onChange={e => setDuration(parseFloat(e.target.value) * 60)} 
-                      className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-[#EA580C] outline-none transition font-bold" 
+                      className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 focus:border-[#EA580C] outline-none transition font-bold" 
                       placeholder="Ex: 1.5"
                     />
                     <p className="text-xs text-[#8D6E63] mt-1 text-right font-bold">{duration} minutes</p>
@@ -238,15 +248,39 @@ export const DS: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Salle / Lieu</label>
-                  <input required type="text" value={room} onChange={e => setRoom(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold" placeholder="Ex: Amphi A" />
+                  <input required type="text" value={room} onChange={e => setRoom(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-bold" placeholder="Ex: Amphi A" />
                 </div>
                 <div>
                   <label className="block text-sm font-black text-[#2D1B0E] mb-2 uppercase">Notes</label>
-                  <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-medium" rows={3} placeholder="Matériel autorisé, consignes..." />
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-[#FFF8F0] border-2 border-[#D6C0B0] rounded-xl p-3 md:p-4 focus:border-[#EA580C] focus:bg-white outline-none transition font-medium" rows={3} placeholder="Matériel autorisé, consignes..." />
                 </div>
+
+                {!editingId && (
+                  <div className="bg-[#FFF8F0] border-2 border-[#D6C0B0] p-4 rounded-xl">
+                    <label className="block text-sm font-black text-[#2D1B0E] mb-3 uppercase tracking-wide flex items-center gap-2">
+                      <BellRing className="w-4 h-4" /> Notifier
+                    </label>
+                    <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3">
+                      {[
+                        { role: Role.STUDENT, label: 'Étudiants', color: 'emerald' },
+                        { role: Role.RESPONSIBLE, label: 'Responsables', color: 'indigo' },
+                        { role: Role.ADMIN, label: 'Admins', color: 'red' }
+                      ].map(target => (
+                        <button 
+                          key={target.role}
+                          type="button" 
+                          onClick={() => toggleTargetRole(target.role)}
+                          className={`px-3 py-2 rounded-lg text-sm font-bold border-2 transition active:scale-95 ${targetRoles.includes(target.role) ? `bg-${target.color}-100 border-${target.color}-300 text-${target.color}-800` : 'bg-white border-slate-200 text-slate-500'}`}
+                        >
+                          {target.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
-                <div className="flex flex-col-reverse md:flex-row gap-4 pt-6">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-4 rounded-xl font-bold text-[#5D4037] bg-[#EFEBE9] hover:bg-[#D7CCC8] transition border-2 border-transparent">
+                <div className="flex flex-col-reverse md:flex-row gap-3 pt-4">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-4 rounded-xl font-bold text-[#5D4037] bg-[#EFEBE9] hover:bg-[#D7CCC8] transition border-2 border-transparent active:scale-95">
                     Annuler
                   </button>
                   <button type="submit" className="w-full md:w-2/3 btn-primary text-white py-4 rounded-xl font-black shadow-[0_4px_0_#9A3412] hover:shadow-[0_2px_0_#9A3412] active:translate-y-1 active:shadow-none transition-all uppercase tracking-wide">
