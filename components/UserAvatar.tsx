@@ -28,7 +28,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'md', class
       <img 
         src={user.avatar} 
         alt={user.name} 
-        className={`${baseClasses} object-cover border-2 border-white dark:border-[#2D1B0E] bg-white dark:bg-[#2D1B0E]`} 
+        className={`${baseClasses} object-cover border border-white dark:border-slate-800 bg-white dark:bg-slate-800`} 
       />
     );
   } 
@@ -36,7 +36,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'md', class
   // 2. Emoji Avatar
   else if (user.avatar) {
     return (
-      <div className={`${baseClasses} bg-orange-100 dark:bg-orange-900 border-2 border-orange-200 dark:border-orange-800 select-none`}>
+      <div className={`${baseClasses} bg-sky-50 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-800 select-none`}>
         {user.avatar}
       </div>
     );
@@ -44,7 +44,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'md', class
   
   // 3. Initials Fallback
   return (
-     <div className={`${baseClasses} bg-[#2D1B0E] dark:bg-[#431407] text-orange-200 border-2 border-orange-800 dark:border-orange-900 font-black uppercase select-none`}>
+     <div className={`${baseClasses} bg-slate-800 dark:bg-slate-700 text-sky-300 border border-slate-700 dark:border-slate-600 font-bold uppercase select-none`}>
         {user.name.charAt(0)}
      </div>
   );

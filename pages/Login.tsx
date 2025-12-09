@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { School, ArrowRight, Lock, Mail, Loader2 } from 'lucide-react';
+import { School, ArrowRight, Lock, Mail, Loader2, GraduationCap } from 'lucide-react';
+
+// UCAD Logo URL
+const LOGO_UCAD = "https://upload.wikimedia.org/wikipedia/fr/4/43/Logo_UCAD.png";
 
 export const Login: React.FC = () => {
   const { login, schoolName } = useApp();
@@ -10,6 +13,7 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,14 +21,10 @@ export const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // On attend la réponse de la base de données
       const success = await login(email);
-      
       if (!success) {
         setError("Email introuvable ou erreur de connexion.");
       }
-      // Si success est true, le AppContext met à jour le 'user', 
-      // ce qui déclenche automatiquement le changement de page dans App.tsx
     } catch (err) {
       setError("Une erreur technique est survenue.");
     } finally {
@@ -33,75 +33,88 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#2D1B0E] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-1/2 bg-[#9A3412] pattern-bogolan opacity-30 transform -skew-y-3 origin-top-left"></div>
-      <div className="absolute bottom-0 right-0 w-full h-1/2 bg-[#312E81] pattern-wax opacity-30 transform skew-y-3 origin-bottom-right"></div>
-
-      <div className="bg-[#FFF8F0] dark:bg-[#1a100a] rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] w-full max-w-5xl overflow-hidden flex flex-col md:flex-row relative z-10 border-4 border-[#7C2D12]">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col md:flex-row relative z-10 border border-slate-100">
         
         {/* Left Side - Visual */}
-        <div className="md:w-5/12 pattern-bogolan p-12 flex flex-col justify-between text-white relative border-r-4 border-[#7C2D12]">
-          <div className="absolute inset-0 bg-[#7C2D12]/10 backdrop-blur-[1px]"></div>
+        <div className="md:w-5/12 bg-gradient-to-br from-sky-500 to-indigo-600 p-12 flex flex-col justify-between text-white relative">
+          <div className="absolute inset-0 bg-white/10 pattern-tech opacity-20"></div>
+          
           <div className="relative z-10">
-            <h1 className="text-4xl lg:text-5xl font-black flex flex-col gap-2 mb-3 text-white drop-shadow-xl tracking-tight break-words">
-              <span className="flex items-center gap-3"><School className="w-12 h-12 text-[#FDBA74]" /> Portail</span>
+            <h1 className="text-4xl lg:text-5xl font-black flex flex-col gap-2 mb-3 tracking-tight">
+              <span className="flex items-center gap-3">
+                <div className="bg-white p-2 rounded-full w-16 h-16 flex items-center justify-center shadow-lg overflow-hidden">
+                  {logoError ? (
+                     <GraduationCap className="w-10 h-10 text-sky-600" />
+                  ) : (
+                     <img 
+                       src={LOGO_UCAD} 
+                       alt="UCAD" 
+                       className="w-full h-full object-contain" 
+                       referrerPolicy="no-referrer"
+                       onError={() => setLogoError(true)}
+                     />
+                  )}
+                </div>
+                Portail
+              </span>
               <span>{schoolName}</span>
             </h1>
-            <p className="text-orange-100 font-bold text-lg border-l-4 border-[#FDBA74] pl-4 mt-6 leading-relaxed">
-              La plateforme éducative qui connecte la communauté.
+            <p className="text-sky-100 font-medium text-lg mt-6 leading-relaxed opacity-90">
+              La plateforme éducative moderne pour une gestion de classe simplifiée.
             </p>
           </div>
 
           <div className="z-10 space-y-4 my-12">
-            <div className="bg-[#2D1B0E]/60 backdrop-blur-md p-5 rounded-xl border border-white/10 shadow-lg">
-              <p className="font-bold text-orange-200 text-lg">🚀 Plateforme 2025-2026</p>
-              <p className="text-sm opacity-90 mt-1">Gestion simplifiée pour les étudiants et responsables.</p>
+            <div className="bg-white/10 backdrop-blur-sm p-5 rounded-xl border border-white/20 shadow-lg">
+              <p className="font-bold text-white text-lg">🚀 Espace Numérique</p>
+              <p className="text-sm opacity-80 mt-1">Centralisez vos cours, examens et annonces.</p>
             </div>
-            <div className="bg-[#2D1B0E]/60 backdrop-blur-md p-5 rounded-xl border border-white/10 shadow-lg">
-               <p className="font-bold text-orange-200 text-lg">🌍 100% Communautaire</p>
-               <p className="text-sm opacity-90 mt-1">Sondages, Meet et DS synchronisés en temps réel.</p>
+            <div className="bg-white/10 backdrop-blur-sm p-5 rounded-xl border border-white/20 shadow-lg">
+               <p className="font-bold text-white text-lg">🌍 Communauté</p>
+               <p className="text-sm opacity-80 mt-1">Restez connecté avec votre classe en temps réel.</p>
             </div>
           </div>
 
-          <div className="text-xs text-orange-200/60 z-10 font-mono uppercase tracking-widest">
+          <div className="text-xs text-sky-200/60 z-10 font-mono uppercase tracking-widest">
             © 2026 {schoolName} Digital
           </div>
         </div>
 
         {/* Right Side - Form */}
-        <div className="md:w-7/12 p-8 md:p-16 bg-[#FFF8F0] dark:bg-[#1a100a]">
+        <div className="md:w-7/12 p-8 md:p-16 bg-white flex flex-col justify-center">
           <div className="mb-10">
-            <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border border-orange-200 dark:border-orange-800">Accès Membre</span>
-            <h2 className="text-4xl font-black text-[#2D1B0E] dark:text-[#fcece4] mt-4 tracking-tight">Connexion</h2>
-            <p className="text-[#5D4037] dark:text-[#A1887F] mt-2 font-medium">Accédez à votre espace classe sécurisé.</p>
+            <span className="bg-sky-50 text-sky-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-sky-100">Accès Membre</span>
+            <h2 className="text-3xl font-bold text-slate-900 mt-4 tracking-tight">Connexion</h2>
+            <p className="text-slate-500 mt-2 font-medium">Entrez vos identifiants pour accéder à votre espace.</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-sm font-bold text-[#2D1B0E] dark:text-[#D6C0B0] mb-2 uppercase tracking-wide">Adresse Email</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Adresse Email</label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-[#EA580C] transition" />
+                <Mail className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-sky-500 transition" />
                 <input 
                   type="email" 
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-white dark:bg-[#2D1B0E] border-2 border-[#D6C0B0] dark:border-[#5D4037] rounded-xl pl-12 pr-4 py-4 focus:ring-0 focus:border-[#EA580C] outline-none transition font-bold text-[#2D1B0E] dark:text-[#fcece4] shadow-sm"
-                  placeholder="votre.email@eco.com"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3.5 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition font-medium text-slate-800"
+                  placeholder="votre.email@ecole.com"
                   disabled={isLoading}
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-bold text-[#2D1B0E] dark:text-[#D6C0B0] mb-2 uppercase tracking-wide">Mot de passe</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Mot de passe</label>
               <div className="relative group">
-                <Lock className="absolute left-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-[#EA580C] transition" />
+                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-slate-400 group-focus-within:text-sky-500 transition" />
                 <input 
                   type="password" 
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-white dark:bg-[#2D1B0E] border-2 border-[#D6C0B0] dark:border-[#5D4037] rounded-xl pl-12 pr-4 py-4 focus:ring-0 focus:border-[#EA580C] outline-none transition font-bold text-[#2D1B0E] dark:text-[#fcece4] shadow-sm"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3.5 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition font-medium text-slate-800"
                   placeholder="••••••••"
                   disabled={isLoading}
                 />
@@ -109,31 +122,31 @@ export const Login: React.FC = () => {
             </div>
 
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-4 rounded-r-lg text-sm font-bold flex items-center gap-2 animate-pulse">
-                <span className="w-2 h-2 bg-red-500 rounded-full"></span> {error}
+              <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg text-sm font-medium flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span> {error}
               </div>
             )}
 
             <button 
               type="submit"
               disabled={isLoading}
-              className="w-full btn-primary text-white font-black text-lg py-4 rounded-xl shadow-[0_6px_0_#9A3412] hover:shadow-[0_4px_0_#9A3412] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-3 group mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-sky-600/20 hover:shadow-sky-600/30 active:scale-[0.99] transition-all flex items-center justify-center gap-3 mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                  CONNEXION...
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Connexion...
                 </>
               ) : (
                 <>
-                  ACCÉDER À L'ESPACE
-                  <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition" />
+                  Se connecter
+                  <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </button>
             
-            <div className="text-center mt-8">
-               <p className="text-[#8D6E63] dark:text-[#A1887F] text-sm font-medium">Mot de passe oublié ? <a href="#" className="text-[#EA580C] font-bold hover:underline">Contacter le support</a></p>
+            <div className="text-center mt-6">
+               <a href="#" className="text-sm text-slate-400 hover:text-sky-600 font-medium transition">Mot de passe oublié ?</a>
             </div>
           </form>
         </div>

@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- SEO & Meta -->
-    <title>SunuClasse - Gestion Scolaire Communautaire</title>
+    <title>SunuClasse - Gestion Scolaire Moderne</title>
     <meta name="description" content="Plateforme de gestion de classe simplifiée pour étudiants et responsables : Annonces, Sondages, Examens et Meet.">
-    <meta name="theme-color" content="#2D1B0E">
+    <meta name="theme-color" content="#0EA5E9">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -15,8 +15,8 @@
     <meta property="og:description" content="Gérez votre vie de classe simplement.">
     <meta property="og:image" content="https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=1200&auto=format&fit=crop">
 
-    <!-- Favicon (Emoji Ecole) -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
+    <!-- Favicon -->
+    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/fr/4/43/Logo_UCAD.png" referrerpolicy="no-referrer">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -25,7 +25,19 @@
         theme: {
           extend: {
             colors: {
-              // Custom palette aliases if needed
+              sky: {
+                50: '#f0f9ff',
+                100: '#e0f2fe',
+                200: '#bae6fd',
+                300: '#7dd3fc',
+                400: '#38bdf8',
+                500: '#0ea5e9',
+                600: '#0284c7',
+                700: '#0369a1',
+                800: '#075985',
+                900: '#0c4a6e',
+                950: '#082f49',
+              }
             }
           }
         }
@@ -35,52 +47,41 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #FFF8F0; /* Sable chaud */
-        color: #2D1B0E; /* Marron très foncé */
+        background-color: #F8FAFC; /* Slate 50 */
+        color: #0F172A; /* Slate 900 */
         transition: background-color 0.3s, color 0.3s;
       }
 
       /* Dark mode body overrides */
       @media (prefers-color-scheme: dark) {
         body {
-          background-color: #1a100a; /* Very dark brown/black */
-          color: #fcece4; /* Light sandy color */
+          background-color: #020617; /* Slate 950 */
+          color: #F1F5F9; /* Slate 100 */
         }
       }
       
-      /* Motif Bogolan simplifié */
-      .pattern-bogolan {
-        background-color: #9A3412; /* Brique */
+      /* Modern Tech Pattern */
+      .pattern-tech {
+        background-color: #0EA5E9;
         background-image: 
-          linear-gradient(45deg, #7C2D12 25%, transparent 25%, transparent 75%, #7C2D12 75%, #7C2D12),
-          linear-gradient(45deg, #7C2D12 25%, transparent 25%, transparent 75%, #7C2D12 75%, #7C2D12);
-        background-size: 24px 24px;
-        background-position: 0 0, 12px 12px;
-      }
-
-      /* Motif Wax Indigo */
-      .pattern-wax {
-        background-color: #312E81; /* Indigo très foncé */
-        background-image: radial-gradient(#4F46E5 2px, transparent 2px), radial-gradient(#4F46E5 2px, transparent 2px);
-        background-size: 16px 16px;
-        background-position: 0 0, 8px 8px;
-      }
-
-      /* Motif Tissu Jaune */
-      .pattern-gold {
-         background-color: #F59E0B;
-         background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, #D97706 10px, #D97706 20px);
+          radial-gradient(at 0% 0%, rgba(255,255,255,0.15) 0px, transparent 50%),
+          radial-gradient(at 100% 100%, rgba(255,255,255,0.15) 0px, transparent 50%);
       }
 
       .btn-primary {
-        background-image: linear-gradient(to bottom right, #EA580C, #C2410C);
-        box-shadow: 0 4px 0 #9A3412;
-        transition: all 0.1s;
+        background-image: linear-gradient(135deg, #0EA5E9, #0284C7);
+        box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3);
+        transition: all 0.2s ease-in-out;
+      }
+      
+      .btn-primary:hover {
+        background-image: linear-gradient(135deg, #38BDF8, #0284C7);
+        box-shadow: 0 6px 15px rgba(14, 165, 233, 0.4);
       }
       
       .btn-primary:active {
-        transform: translateY(4px);
-        box-shadow: 0 0 0 #9A3412;
+        transform: translateY(2px);
+        box-shadow: 0 2px 5px rgba(14, 165, 233, 0.3);
       }
 
       /* Custom Scrollbar */
@@ -88,25 +89,25 @@
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #FFF8F0; 
+        background: #F1F5F9; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #D6C0B0; 
+        background: #94A3B8; 
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #A68A75; 
+        background: #64748B; 
       }
 
       @media (prefers-color-scheme: dark) {
         ::-webkit-scrollbar-track {
-          background: #2D1B0E; 
+          background: #0F172A; 
         }
         ::-webkit-scrollbar-thumb {
-          background: #5D4037; 
+          background: #334155; 
         }
         ::-webkit-scrollbar-thumb:hover {
-          background: #8D6E63; 
+          background: #475569; 
         }
       }
     </style>
