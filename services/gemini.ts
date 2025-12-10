@@ -1,10 +1,13 @@
+
 import { GoogleGenAI } from "@google/genai";
 
 // Helper to safely access env vars in Vite environment
 const getApiKey = () => {
   try {
     // @ts-ignore - Vite replaces this at build time
-    return process.env.API_KEY;
+    const key = process.env.API_KEY;
+    if (!key || key === "" || key === "undefined") return undefined;
+    return key;
   } catch (e) {
     return undefined;
   }
@@ -17,7 +20,7 @@ export const isGeminiConfigured = (): boolean => {
 
 const getClient = () => {
   const apiKey = getApiKey();
-  if (!apiKey) throw new Error("Clé API manquante.");
+  if (!apiKey) throw new Error("Clé API Google Gemini manquante ou invalide.");
   return new GoogleGenAI({ apiKey });
 };
 
@@ -51,8 +54,8 @@ export const generateAnnouncementContent = async (topic: string, role: string): 
 
     return response.text?.trim() || "Impossible de générer le contenu.";
   } catch (error) {
-    console.error("Gemini Error:", error);
-    return "Erreur lors de la génération. Veuillez vérifier la connexion.";
+    console.error("Gemini Error (Annonce):", error);
+    return `Erreur IA: Vérifiez votre connexion internet ou la clé API. (Sujet original: ${topic})`;
   }
 };
 
@@ -60,6 +63,8 @@ export const generateAnnouncementContent = async (topic: string, role: string): 
 export type CorrectionStyle = 'FIX' | 'PROFESSIONAL' | 'SIMPLE' | 'ACADEMIC' | 'CONCISE' | 'CASUAL' | 'PERSUASIVE';
 
 export const correctTextAdvanced = async (text: string, style: CorrectionStyle = 'FIX'): Promise<string> => {
+  if (!text || text.trim().length === 0) return text;
+  
   try {
     const ai = getClient();
     const model = 'gemini-2.5-flash';
@@ -114,8 +119,9 @@ export const correctTextAdvanced = async (text: string, style: CorrectionStyle =
 
     return response.text?.trim() || text;
   } catch (error) {
-    console.error("Correction Error:", error);
-    throw error;
+    console.error("Gemini Error (Correction):", error);
+    // En cas d'erreur, on renvoie le texte original pour ne pas bloquer l'utilisateur
+    return text;
   }
 };
 
@@ -149,7 +155,7 @@ export const rephrasePollQuestion = async (question: string): Promise<string> =>
 
     return response.text?.trim() || question;
   } catch (error) {
-    console.error("Rephrase Error:", error);
+    console.error("Gemini Error (Sondage):", error);
     return question;
   }
 };
@@ -181,6 +187,9 @@ export const chatWithAssistant = async (history: ChatMessage[], newMessage: stri
       - Refuse de traiter les demandes illégales, haineuses ou de triche manifeste (ex: "fais mon devoir entier").
     `;
     
+    // Conversion de l'historique pour l'API
+    // Note: L'API attend une structure spécifique, mais ici nous passons le contexte en texte brut pour simplifier
+    // et garantir la compatibilité avec la méthode generateContent simple.
     const conversationText = `
       ${systemPrompt}
       
@@ -199,40 +208,7 @@ export const chatWithAssistant = async (history: ChatMessage[], newMessage: stri
 
     return response.text?.trim() || "Désolé, je n'ai pas pu traiter votre demande.";
   } catch (error) {
-    console.error("Chat Error:", error);
-    return "Je rencontre des difficultés techniques pour le moment. Veuillez réessayer.";
-  }
-};
-
-export const editImageWithGemini = async (imageBase64: string, prompt: string): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("Clé API manquante.");
-
-  const match = imageBase64.match(/^data:(.+);base64,(.+)$/);
-  if (!match) throw new Error("Format invalide.");
-  
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [
-          { inlineData: { mimeType: match[1], data: match[2] } },
-          { text: prompt },
-        ],
-      },
-    });
-
-    if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData?.data) {
-           return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-        }
-      }
-    }
-    throw new Error("Pas d'image retournée.");
-  } catch (error: any) {
-    console.error("Image Edit Error:", error);
-    throw new Error(error.message || "Erreur image.");
+    console.error("Gemini Error (Chat):", error);
+    return "Je rencontre des difficultés techniques (Erreur API ou Connexion). Veuillez réessayer plus tard.";
   }
 };

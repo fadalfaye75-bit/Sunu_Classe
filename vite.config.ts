@@ -6,17 +6,20 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   // Fix: Cast process to any to avoid TS error about missing cwd() property on Process type
   const env = loadEnv(mode, (process as any).cwd(), '');
+  
+  // Utilise la variable d'environnement SI elle existe, SINON utilise la clé fournie en dur.
+  // Cela garantit que l'IA fonctionne après déploiement même sans config serveur.
+  const apiKey = env.API_KEY || "AIzaSyA5cX0Kp2QP4nZQ_FJOb5qgxo0aP1q5E3Y";
+
   return {
     plugins: [react()],
     define: {
-      // Configuration sécurisée : On lit la variable d'environnement injectée par Vercel ou le fichier .env
-      // Si aucune clé n'est trouvée, l'IA ne fonctionnera pas (ce qui est mieux que d'exposer la clé publiquement)
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || "")
+      'process.env.API_KEY': JSON.stringify(apiKey)
     },
     build: {
       outDir: 'dist',
-      sourcemap: false, // Désactivé pour la prod (plus léger)
-      minify: 'esbuild', // Compilation rapide et optimisée
+      sourcemap: false,
+      minify: 'esbuild',
     }
   };
 });
