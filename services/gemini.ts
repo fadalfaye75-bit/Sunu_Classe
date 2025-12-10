@@ -3,14 +3,20 @@ import { GoogleGenAI } from "@google/genai";
 
 // Helper to safely access env vars in Vite environment
 const getApiKey = () => {
+  // Clé de secours codée en dur pour garantir le fonctionnement en production
+  // si la variable d'environnement n'est pas injectée correctement.
+  const FALLBACK_KEY = "AIzaSyA5cX0Kp2QP4nZQ_FJOb5qgxo0aP1q5E3Y";
+  
   try {
     // @ts-ignore - Vite replaces this at build time
     const key = process.env.API_KEY;
-    if (!key || key === "" || key === "undefined") return undefined;
-    return key;
+    if (key && key !== "" && key !== "undefined") {
+      return key;
+    }
   } catch (e) {
-    return undefined;
+    // Ignore error if process is not defined
   }
+  return FALLBACK_KEY;
 };
 
 // Helper to check if API key is available
@@ -55,7 +61,7 @@ export const generateAnnouncementContent = async (topic: string, role: string): 
     return response.text?.trim() || "Impossible de générer le contenu.";
   } catch (error) {
     console.error("Gemini Error (Annonce):", error);
-    return `Erreur IA: Vérifiez votre connexion internet ou la clé API. (Sujet original: ${topic})`;
+    return `Erreur IA: Vérifiez votre connexion internet. (Sujet original: ${topic})`;
   }
 };
 
@@ -187,9 +193,6 @@ export const chatWithAssistant = async (history: ChatMessage[], newMessage: stri
       - Refuse de traiter les demandes illégales, haineuses ou de triche manifeste (ex: "fais mon devoir entier").
     `;
     
-    // Conversion de l'historique pour l'API
-    // Note: L'API attend une structure spécifique, mais ici nous passons le contexte en texte brut pour simplifier
-    // et garantir la compatibilité avec la méthode generateContent simple.
     const conversationText = `
       ${systemPrompt}
       
@@ -209,6 +212,6 @@ export const chatWithAssistant = async (history: ChatMessage[], newMessage: stri
     return response.text?.trim() || "Désolé, je n'ai pas pu traiter votre demande.";
   } catch (error) {
     console.error("Gemini Error (Chat):", error);
-    return "Je rencontre des difficultés techniques (Erreur API ou Connexion). Veuillez réessayer plus tard.";
+    return "Je rencontre des difficultés techniques. Veuillez réessayer plus tard.";
   }
 };
