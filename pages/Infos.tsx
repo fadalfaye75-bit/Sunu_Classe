@@ -421,7 +421,7 @@ export const Infos: React.FC = () => {
               onClick={() => setViewingItem(item)}
               className={`
                 bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none
-                border border-slate-100 dark:border-slate-800 p-6 md:p-8 relative overflow-hidden 
+                border border-slate-100 dark:border-slate-800 p-5 md:p-8 relative overflow-hidden 
                 group cursor-pointer transition-all duration-300 
                 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgb(135,206,235,0.15)] dark:hover:shadow-lg dark:hover:shadow-[#87CEEB]/5
                 hover:bg-slate-50 dark:hover:bg-slate-800/30
@@ -434,14 +434,14 @@ export const Infos: React.FC = () => {
               `}></div>
 
               {/* Header avec Avatar, Nom et Badges */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pl-3">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 mb-4 md:mb-5 pl-2 md:pl-3">
                  <div className="flex items-center gap-3">
                     <div className="ring-2 ring-white dark:ring-slate-900 rounded-full shadow-sm bg-slate-100 dark:bg-slate-800">
                       <UserAvatar user={author} size="md" />
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-900 dark:text-white">{author?.name || 'Inconnu'}</p>
-                      <p className="text-xs font-medium text-slate-400 flex items-center gap-1 mt-0.5 capitalize">
+                      <p className="text-[10px] md:text-xs font-medium text-slate-400 flex items-center gap-1 mt-0.5 capitalize">
                         <Clock className="w-3 h-3" />
                         {format(new Date(item.date), 'EEEE dd MMM yyyy à HH:mm', { locale: fr })}
                       </p>
@@ -469,18 +469,18 @@ export const Infos: React.FC = () => {
               </div>
 
               {/* Contenu */}
-              <div className="pl-3 md:pr-10">
-                <h3 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white mb-3 leading-tight group-hover:text-[#0EA5E9] transition-colors duration-300">
-                  {isExpired && <span className="text-red-500 mr-2 text-lg">[EXPIRÉ]</span>}
+              <div className="pl-2 md:pl-3 md:pr-10">
+                <h3 className="text-lg md:text-2xl font-black text-slate-800 dark:text-white mb-2 md:mb-3 leading-tight group-hover:text-[#0EA5E9] transition-colors duration-300">
+                  {isExpired && <span className="text-red-500 mr-2 text-base md:text-lg">[EXPIRÉ]</span>}
                   {item.title}
                 </h3>
                 
-                <div className="text-slate-600 dark:text-slate-300 leading-relaxed text-base font-medium mb-4 line-clamp-3">
+                <div className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm md:text-base font-medium mb-3 md:mb-4 line-clamp-3">
                   {item.content}
                 </div>
                 
-                <div className="flex items-center gap-1 text-[#87CEEB] font-bold text-sm group-hover:translate-x-1 transition-transform">
-                    <span>Lire la suite</span> <ChevronRight className="w-4 h-4" />
+                <div className="flex items-center gap-1 text-[#87CEEB] font-bold text-xs md:text-sm group-hover:translate-x-1 transition-transform">
+                    <span>Lire la suite</span> <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
                 </div>
               </div>
 
