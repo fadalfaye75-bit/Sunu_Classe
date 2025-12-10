@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Bot, Sparkles, Send, Trash2, Copy, Check, Wand2, Type, FileText, Briefcase, GraduationCap, Zap, RefreshCw, MessageCircle, Smile, Megaphone } from 'lucide-react';
 import { chatWithAssistant, correctTextAdvanced, ChatMessage, CorrectionStyle } from '../services/gemini';
+import { supabase } from '../services/supabaseClient';
 
 export const Assistant: React.FC = () => {
-  const { addNotification } = useApp();
+  const { user, addNotification } = useApp();
   const [activeTab, setActiveTab] = useState<'CHAT' | 'CORRECTOR'>('CHAT');
 
   // --- CHAT STATE ---
@@ -19,6 +20,35 @@ export const Assistant: React.FC = () => {
   const [isCorrecting, setIsCorrecting] = useState(false);
   const [correctionStyle, setCorrectionStyle] = useState<CorrectionStyle>('FIX');
 
+  // --- PERSISTENCE ---
+  useEffect(() => {
+    if (user && activeTab === 'CHAT') {
+      loadChatHistory();
+    }
+  }, [user, activeTab]);
+
+  const loadChatHistory = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('ai_conversations')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
+    
+    if (data) {
+      setMessages(data.map(m => ({ role: m.role as 'user' | 'model', text: m.content })));
+    }
+  };
+
+  const saveMessageToHistory = async (msg: ChatMessage) => {
+    if (!user) return;
+    await supabase.from('ai_conversations').insert([{
+      user_id: user.id,
+      role: msg.role,
+      content: msg.text
+    }]);
+  };
+
   // --- AUTO SCROLL CHAT ---
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -29,25 +59,47 @@ export const Assistant: React.FC = () => {
     if (!inputMessage.trim()) return;
 
     const userMsg: ChatMessage = { role: 'user', text: inputMessage };
+    
+    // Optimistic Update
     setMessages(prev => [...prev, userMsg]);
     setInputMessage('');
     setIsTyping(true);
+    
+    // Save User Msg async
+    saveMessageToHistory(userMsg);
 
     const aiResponse = await chatWithAssistant(messages, userMsg.text);
 
     setIsTyping(false);
-    setMessages(prev => [...prev, { role: 'model', text: aiResponse }]);
+    const aiMsg: ChatMessage = { role: 'model', text: aiResponse };
+    setMessages(prev => [...prev, aiMsg]);
+    
+    // Save AI Msg async
+    saveMessageToHistory(aiMsg);
   };
 
-  const handleClearChat = () => {
+  const handleClearChat = async () => {
+    if (!user) return;
+    
+    // Optimistic Clear
     setMessages([]);
-    addNotification("Conversation effacée", "INFO");
+    
+    // DB Clear
+    const { error } = await supabase
+      .from('ai_conversations')
+      .delete()
+      .eq('user_id', user.id);
+
+    if (error) {
+       addNotification("Erreur lors de la suppression de l'historique", "ERROR");
+       loadChatHistory(); // Revert if failed
+    } else {
+       addNotification("Conversation effacée", "INFO");
+    }
   };
 
   const handleQuickAction = (text: string) => {
     setInputMessage(text);
-    // Optionnel: Envoyer directement
-    // handleSendMessage(); 
   };
 
   // --- CORRECTOR HANDLERS ---

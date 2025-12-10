@@ -4,14 +4,16 @@ import { GoogleGenAI } from "@google/genai";
 // Helper to safely access env vars in Vite environment
 const getApiKey = () => {
   // Clé de secours codée en dur pour garantir le fonctionnement en production
-  // si la variable d'environnement n'est pas injectée correctement.
   const FALLBACK_KEY = "AIzaSyA5cX0Kp2QP4nZQ_FJOb5qgxo0aP1q5E3Y";
   
   try {
-    // @ts-ignore - Vite replaces this at build time
-    const key = process.env.API_KEY;
-    if (key && key !== "" && key !== "undefined") {
-      return key;
+    // Vérification défensive de l'existence de process avant d'accéder à env
+    if (typeof process !== 'undefined' && process.env) {
+        // @ts-ignore - Vite replaces this at build time
+        const key = process.env.API_KEY;
+        if (key && key !== "" && key !== "undefined") {
+          return key;
+        }
     }
   } catch (e) {
     // Ignore error if process is not defined

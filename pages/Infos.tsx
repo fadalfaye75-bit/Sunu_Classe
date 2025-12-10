@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Urgency, Announcement } from '../types';
@@ -329,7 +330,6 @@ export const Infos: React.FC = () => {
       {showFilters && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 flex flex-col gap-4 animate-in slide-in-from-top-2">
            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-             {/* Filtres... (Code inchangé) */}
              <div>
                 <label className="text-[10px] font-bold uppercase text-slate-400 mb-1.5 flex items-center gap-1"><Clock className="w-3 h-3"/> Du</label>
                 <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-[#87CEEB]/30" />
@@ -381,10 +381,7 @@ export const Infos: React.FC = () => {
         {filteredAnnouncements.length === 0 && (
           <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700">
              <Megaphone className="w-16 h-16 mx-auto mb-4 opacity-10 text-slate-900 dark:text-white" />
-             <p className="font-medium text-lg text-slate-500">Aucune annonce ne correspond à vos critères.</p>
-             {(searchQuery || filterStartDate || filterEndDate || filterUrgency !== 'ALL' || filterAuthorId !== 'ALL') && (
-               <button onClick={clearFilters} className="text-[#87CEEB] font-bold text-sm mt-2 hover:underline">Effacer la recherche</button>
-             )}
+             <p className="font-medium text-lg text-slate-500">Aucun résultat ne correspond à vos critères.</p>
           </div>
         )}
         {currentAnnouncements.map((item) => {
@@ -521,14 +518,19 @@ export const Infos: React.FC = () => {
         </div>
       )}
       {isModalOpen && canCreate && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[160] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-t-[2.5rem] md:rounded-[2rem] shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
-              <h3 className="font-black text-xl text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-2"><span className="w-2 h-6 bg-[#0EA5E9] rounded-full"></span>{editingId ? 'Modifier l\'annonce' : 'Nouvelle Annonce'}</h3>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[160] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] relative">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0 rounded-t-[2rem]">
+              <h3 className="font-black text-xl text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                <span className="w-2 h-6 bg-[#0EA5E9] rounded-full"></span>{editingId ? 'Modifier l\'annonce' : 'Nouvelle Annonce'}
+              </h3>
               <button onClick={() => setIsModalOpen(false)} className="bg-white dark:bg-slate-900 text-slate-400 hover:text-slate-600 p-2 rounded-full transition shadow-sm border border-slate-100 dark:border-slate-800"><X className="w-6 h-6" /></button>
             </div>
-            <div className="overflow-y-auto p-8 bg-white dark:bg-slate-900">
-              <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {/* Scrollable Content */}
+            <div className="overflow-y-auto p-8 bg-white dark:bg-slate-900 flex-1">
+              <form id="annonce-form" onSubmit={handleSubmit} className="space-y-6">
                  <div>
                     <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Titre</label>
                     <input required type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-lg font-bold focus:ring-4 focus:ring-[#87CEEB]/20 focus:border-[#0EA5E9] outline-none transition text-slate-800 dark:text-white placeholder-slate-400" placeholder="Ex: Sortie pédagogique..." />
@@ -560,11 +562,13 @@ export const Infos: React.FC = () => {
                         </div>
                     </div>
                  </div>
-                 <div className="flex flex-col-reverse md:flex-row gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-3.5 rounded-2xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition active:scale-95">Annuler</button>
-                    <button type="submit" className="w-full md:w-2/3 bg-[#0EA5E9] text-white py-3.5 rounded-2xl font-bold hover:bg-[#0284C7] shadow-lg shadow-[#87CEEB]/30 transition active:scale-95 flex items-center justify-center gap-2">{editingId ? 'Mettre à jour' : 'Publier l\'annonce'}</button>
-                 </div>
               </form>
+            </div>
+            
+            {/* Fixed Footer with Buttons */}
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-[2rem] flex flex-col-reverse md:flex-row gap-3">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-3.5 rounded-2xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition active:scale-95">Annuler</button>
+                <button type="submit" form="annonce-form" className="w-full md:w-2/3 bg-[#0EA5E9] text-white py-3.5 rounded-2xl font-bold hover:bg-[#0284C7] shadow-lg shadow-[#87CEEB]/30 transition active:scale-95 flex items-center justify-center gap-2">{editingId ? 'Mettre à jour' : 'Publier l\'annonce'}</button>
             </div>
           </div>
         </div>

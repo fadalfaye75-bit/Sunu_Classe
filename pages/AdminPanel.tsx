@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User, ClassGroup } from '../types';
@@ -24,6 +25,11 @@ export const AdminPanel: React.FC = () => {
   
   const [isEditingSchoolName, setIsEditingSchoolName] = useState(false);
   const [tempSchoolName, setTempSchoolName] = useState(schoolName);
+
+  // Sync temp state when context changes (fix visual bug)
+  useEffect(() => {
+    setTempSchoolName(schoolName);
+  }, [schoolName]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
