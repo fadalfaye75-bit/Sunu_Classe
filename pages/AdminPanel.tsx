@@ -1,8 +1,8 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User, ClassGroup } from '../types';
-import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X, Copy, Check, Mail, Calendar, Info, RefreshCw, Eye, Search, Filter, Send, Settings, Lock, Server, Terminal, ExternalLink } from 'lucide-react';
+import { Users, Shield, Trash2, Plus, Pencil, Save, AlertTriangle, Download, Upload, School, UserCircle, X, Copy, Check, Mail, Calendar, Info, RefreshCw, Eye, Search, Filter, Send, Settings, Lock, Server, Terminal, ExternalLink, CheckCircle } from 'lucide-react';
 import { format, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from '../components/UserAvatar';
@@ -43,6 +43,12 @@ export const AdminPanel: React.FC = () => {
   const [logAuthor, setLogAuthor] = useState('ALL');
   const [logStartDate, setLogStartDate] = useState('');
   const [logEndDate, setLogEndDate] = useState('');
+  
+  // State pour les logs "Non lus" (Basé sur le localStorage)
+  const [lastReadLogTime, setLastReadLogTime] = useState(() => {
+    return localStorage.getItem('admin_last_read_log_time') || new Date(0).toISOString();
+  });
+  const [filterUnread, setFilterUnread] = useState(false);
   
   // --- EMAIL CONFIG STATE ---
   const [sgApiKey, setSgApiKey] = useState(emailConfig.apiKey || '');
@@ -86,9 +92,15 @@ export const AdminPanel: React.FC = () => {
         matchesDate = matchesDate && isBefore(logDate, endOfDay(new Date(logEndDate)));
       }
 
-      return matchesSearch && matchesSeverity && matchesAuthor && matchesDate;
+      // 5. Unread Filter
+      let matchesUnread = true;
+      if (filterUnread) {
+        matchesUnread = logDate.getTime() > new Date(lastReadLogTime).getTime();
+      }
+
+      return matchesSearch && matchesSeverity && matchesAuthor && matchesDate && matchesUnread;
     });
-  }, [auditLogs, logSearch, logSeverity, logAuthor, logStartDate, logEndDate]);
+  }, [auditLogs, logSearch, logSeverity, logAuthor, logStartDate, logEndDate, filterUnread, lastReadLogTime]);
 
   const clearLogFilters = () => {
     setLogSearch('');
@@ -96,6 +108,14 @@ export const AdminPanel: React.FC = () => {
     setLogAuthor('ALL');
     setLogStartDate('');
     setLogEndDate('');
+    setFilterUnread(false);
+  };
+
+  const markAllLogsAsRead = () => {
+    const now = new Date().toISOString();
+    localStorage.setItem('admin_last_read_log_time', now);
+    setLastReadLogTime(now);
+    addNotification("Tous les journaux marqués comme lus", "SUCCESS");
   };
 
   const saveSchoolName = () => {
@@ -558,13 +578,36 @@ export const AdminPanel: React.FC = () => {
                  </div>
                </div>
 
-               <button 
-                 onClick={clearLogFilters}
-                 className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition"
-                 title="Effacer les filtres"
-               >
-                 <X className="w-4 h-4" />
-               </button>
+               <div className="flex items-end gap-2">
+                 <button
+                    onClick={() => setFilterUnread(!filterUnread)}
+                    className={`p-2.5 rounded-xl transition border text-sm font-bold flex items-center gap-2 ${
+                      filterUnread 
+                      ? 'bg-sky-50 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 text-sky-600' 
+                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-slate-500'
+                    }`}
+                    title="Afficher uniquement les nouveaux logs"
+                 >
+                   <div className={`w-2.5 h-2.5 rounded-full ${filterUnread ? 'bg-sky-500' : 'bg-slate-300'}`}></div>
+                   Nouveaux
+                 </button>
+
+                 <button
+                    onClick={markAllLogsAsRead}
+                    className="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition flex items-center gap-2 text-sm font-bold"
+                    title="Marquer tous comme lus"
+                 >
+                   <CheckCircle className="w-4 h-4" />
+                 </button>
+
+                 <button 
+                   onClick={clearLogFilters}
+                   className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition"
+                   title="Effacer les filtres"
+                 >
+                   <X className="w-4 h-4" />
+                 </button>
+               </div>
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
@@ -582,22 +625,28 @@ export const AdminPanel: React.FC = () => {
                       {filteredLogs.length === 0 ? (
                         <tr><td colSpan={4} className="p-8 text-center">Aucun log ne correspond aux critères.</td></tr>
                       ) : (
-                        filteredLogs.map(log => (
-                          <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                              <td className="px-6 py-4">
-                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
-                                    log.severity === 'CRITICAL' ? 'bg-red-100 text-red-700' :
-                                    log.severity === 'WARNING' ? 'bg-orange-100 text-orange-700' :
-                                    'bg-slate-100 text-slate-600'
-                                }`}>
-                                  {log.action}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 font-bold text-slate-800 dark:text-white">{log.author}</td>
-                              <td className="px-6 py-4">{log.details}</td>
-                              <td className="px-6 py-4 text-xs font-mono">{format(new Date(log.timestamp), 'dd/MM HH:mm')}</td>
-                          </tr>
-                        ))
+                        filteredLogs.map(log => {
+                          const isNew = new Date(log.timestamp).getTime() > new Date(lastReadLogTime).getTime();
+                          return (
+                            <tr key={log.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition ${isNew ? 'bg-sky-50/50 dark:bg-sky-900/10' : ''}`}>
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-2">
+                                    {isNew && <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" title="Nouveau log"></div>}
+                                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+                                        log.severity === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                        log.severity === 'WARNING' ? 'bg-orange-100 text-orange-700' :
+                                        'bg-slate-100 text-slate-600'
+                                    }`}>
+                                      {log.action}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 font-bold text-slate-800 dark:text-white">{log.author}</td>
+                                <td className="px-6 py-4">{log.details}</td>
+                                <td className="px-6 py-4 text-xs font-mono">{format(new Date(log.timestamp), 'dd/MM HH:mm')}</td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>

@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Urgency, Announcement } from '../types';
 import { generateAnnouncementContent, correctFrenchText } from '../services/gemini';
-import { Megaphone, Trash2, Clock, Sparkles, Pencil, Plus, X, ArrowUpDown, Filter, Send, Mail, User, AlertCircle, Timer, Search, Archive, Wand2, Eye, Copy } from 'lucide-react';
+import { Megaphone, Trash2, Clock, Sparkles, Pencil, Plus, X, ArrowUpDown, Filter, Send, Mail, User, AlertCircle, Timer, Search, Archive, Wand2, Eye, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, isAfter, isBefore, startOfDay, endOfDay, addHours } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from '../components/UserAvatar';
@@ -35,6 +35,13 @@ export const Infos: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showArchived, setShowArchived] = useState(false); // État pour voir les archives
   
+  // Real-time auto-hide
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
+  
   // Recherche
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -62,6 +69,15 @@ export const Infos: React.FC = () => {
   // --- FILTER BY CLASS ---
   const myAnnouncements = isAdmin ? announcements : announcements.filter(a => a.classId === user?.classId);
 
+  // --- REAL-TIME TIMER ---
+  // Met à jour l'heure actuelle toutes les minutes pour déclencher le masquage automatique
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // 1 minute
+    return () => clearInterval(timer);
+  }, []);
+
   // Récupérer la liste unique des auteurs ayant posté des annonces (dans mon scope)
   const uniqueAuthors = useMemo(() => {
     const authorIds = Array.from(new Set(myAnnouncements.map(a => a.authorId)));
@@ -79,6 +95,11 @@ export const Infos: React.FC = () => {
       }
     }
   }, [highlightedItemId, myAnnouncements, setHighlightedItemId]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStartDate, filterEndDate, filterUrgency, filterAuthorId, showArchived, sortOrder]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -170,12 +191,12 @@ export const Infos: React.FC = () => {
 
   const filteredAnnouncements = sortedAnnouncements.filter(item => {
     const itemDate = new Date(item.date);
-    const now = new Date();
 
     // 0. Filtre de durée (Masquage automatique ou Archives)
     if (item.durationHours && item.durationHours > 0) {
       const expirationDate = addHours(itemDate, item.durationHours);
-      const isExpired = isAfter(now, expirationDate);
+      // Utilisation de currentTime pour la réactivité temps réel
+      const isExpired = isAfter(currentTime, expirationDate);
       
       if (!showArchived && isExpired) {
         return false; // Masqué si expiré et qu'on ne regarde pas les archives
@@ -222,6 +243,14 @@ export const Infos: React.FC = () => {
     return true;
   });
 
+  // --- PAGINATION LOGIC ---
+  const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
+  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
+  const currentAnnouncements = filteredAnnouncements.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredAnnouncements.length / ITEMS_PER_PAGE);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
   const toggleSort = () => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
   
   const clearFilters = () => { 
@@ -237,7 +266,7 @@ export const Infos: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white flex items-center gap-3 tracking-tight">
-            <span className="bg-sky-100 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-800 p-2 rounded-xl text-sky-600"><Megaphone className="w-8 h-8" /></span>
+            <span className="bg-[#87CEEB]/20 dark:bg-[#87CEEB]/30 border border-[#87CEEB]/40 p-2 rounded-2xl text-[#0EA5E9] dark:text-[#87CEEB]"><Megaphone className="w-8 h-8" /></span>
             Annonces
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-lg">Actualités et communiqués officiels.</p>
@@ -246,7 +275,7 @@ export const Infos: React.FC = () => {
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <button 
              onClick={() => setShowArchived(!showArchived)}
-             className={`p-3 rounded-xl border transition flex items-center justify-center gap-2 active:scale-95 shadow-sm flex-1 md:flex-none ${showArchived ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}
+             className={`p-3 rounded-2xl border transition flex items-center justify-center gap-2 active:scale-95 shadow-sm flex-1 md:flex-none ${showArchived ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}
              title={showArchived ? "Masquer les archives" : "Voir les archives"}
           >
              <Archive className="w-5 h-5" />
@@ -254,7 +283,7 @@ export const Infos: React.FC = () => {
 
           <button 
              onClick={toggleSort}
-             className="bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-2 active:scale-95 shadow-sm flex-1 md:flex-none justify-center"
+             className="bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-2 active:scale-95 shadow-sm flex-1 md:flex-none justify-center"
              title={sortOrder === 'desc' ? "Plus récents d'abord" : "Plus anciens d'abord"}
           >
              <ArrowUpDown className="w-5 h-5" />
@@ -262,7 +291,7 @@ export const Infos: React.FC = () => {
           
           <button 
              onClick={() => setShowFilters(!showFilters)}
-             className={`p-3 rounded-xl border transition flex items-center justify-center gap-2 active:scale-95 shadow-sm flex-1 md:flex-none ${showFilters ? 'bg-sky-50 dark:bg-sky-900/30 text-sky-600 border-sky-200 dark:border-sky-800' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}
+             className={`p-3 rounded-2xl border transition flex items-center justify-center gap-2 active:scale-95 shadow-sm flex-1 md:flex-none ${showFilters ? 'bg-[#87CEEB]/20 text-[#0369A1] border-[#87CEEB]/40' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}
           >
              <Filter className="w-5 h-5" />
           </button>
@@ -270,7 +299,7 @@ export const Infos: React.FC = () => {
           {canCreate && (
             <button 
               onClick={openCreate}
-              className="w-full md:w-auto btn-primary text-white px-6 py-3 rounded-xl font-bold active:scale-95 transition flex items-center justify-center gap-2 shadow-md"
+              className="w-full md:w-auto btn-primary text-white px-6 py-3 rounded-2xl font-bold active:scale-95 transition flex items-center justify-center gap-2 shadow-md shadow-[#87CEEB]/30"
             >
               <Plus className="w-5 h-5" /> <span>Publier</span>
             </button>
@@ -279,16 +308,17 @@ export const Infos: React.FC = () => {
       </div>
 
       {/* Barre de recherche toujours visible */}
-      <div className="relative mb-6 group">
+      <div className="relative mb-8 group">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-slate-400 group-focus-within:text-sky-500 transition-colors" />
+          <Search className="h-5 w-5 text-slate-400 group-focus-within:text-[#87CEEB] transition-colors" />
         </div>
         <input 
           type="text" 
+          aria-label="Rechercher une annonce"
           placeholder="Rechercher une annonce (titre, contenu)..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="block w-full pl-11 pr-12 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500/50 transition-all shadow-sm font-medium"
+          className="block w-full pl-11 pr-12 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-[#87CEEB]/20 focus:border-[#87CEEB] transition-all shadow-sm font-medium"
         />
         {searchQuery && (
            <button 
@@ -303,18 +333,18 @@ export const Infos: React.FC = () => {
       </div>
 
       {showFilters && (
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 flex flex-col gap-4 animate-in slide-in-from-top-2">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 flex flex-col gap-4 animate-in slide-in-from-top-2">
            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
              {/* Filtre Date Début */}
              <div>
                 <label className="text-[10px] font-bold uppercase text-slate-400 mb-1.5 flex items-center gap-1"><Clock className="w-3 h-3"/> Du</label>
-                <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20" />
+                <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-[#87CEEB]/30" />
              </div>
              
              {/* Filtre Date Fin */}
              <div>
                 <label className="text-[10px] font-bold uppercase text-slate-400 mb-1.5 flex items-center gap-1"><Clock className="w-3 h-3"/> Au</label>
-                <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20" />
+                <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-[#87CEEB]/30" />
              </div>
 
              {/* Filtre Urgence */}
@@ -323,7 +353,7 @@ export const Infos: React.FC = () => {
                 <select 
                   value={filterUrgency} 
                   onChange={e => setFilterUrgency(e.target.value as Urgency | 'ALL')}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 appearance-none"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-[#87CEEB]/30 appearance-none"
                 >
                   <option value="ALL">Toutes</option>
                   <option value={Urgency.INFO}>Info</option>
@@ -338,7 +368,7 @@ export const Infos: React.FC = () => {
                 <select 
                   value={filterAuthorId} 
                   onChange={e => setFilterAuthorId(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 appearance-none"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-[#87CEEB]/30 appearance-none"
                 >
                   <option value="ALL">Tous les auteurs</option>
                   {uniqueAuthors.map(u => (
@@ -368,123 +398,135 @@ export const Infos: React.FC = () => {
          )}
       </div>
 
-      <div className="space-y-4 md:space-y-6">
+      <div className="space-y-6">
         {filteredAnnouncements.length === 0 && (
-          <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+          <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700">
              <Megaphone className="w-16 h-16 mx-auto mb-4 opacity-10 text-slate-900 dark:text-white" />
              <p className="font-medium text-lg text-slate-500">Aucune annonce ne correspond à vos critères.</p>
              {(searchQuery || filterStartDate || filterEndDate || filterUrgency !== 'ALL' || filterAuthorId !== 'ALL') && (
-               <button onClick={clearFilters} className="text-sky-600 font-bold text-sm mt-2 hover:underline">Effacer la recherche</button>
+               <button onClick={clearFilters} className="text-[#87CEEB] font-bold text-sm mt-2 hover:underline">Effacer la recherche</button>
              )}
           </div>
         )}
-        {filteredAnnouncements.map((item) => {
+        {currentAnnouncements.map((item) => {
            const author = users.find(u => u.id === item.authorId);
            const isAuthor = user?.id === item.authorId;
            
-           // Check expiration
+           // Check expiration using REAL-TIME currentTime
            const expirationDate = item.durationHours ? addHours(new Date(item.date), item.durationHours) : null;
-           const isExpired = expirationDate ? isAfter(new Date(), expirationDate) : false;
+           const isExpired = expirationDate ? isAfter(currentTime, expirationDate) : false;
 
            return (
             <div 
               key={item.id} 
               onClick={() => setViewingItem(item)}
               className={`
-              bg-white dark:bg-slate-900 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 ease-out
-              border-l-[4px] p-4 md:p-6 relative group cursor-pointer active:scale-[0.99] hover:-translate-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/50
-              ${item.urgency === 'URGENT' ? 'border-l-red-500 shadow-red-100 dark:shadow-red-900/10' : item.urgency === 'INFO' ? 'border-l-sky-500 shadow-sky-100 dark:shadow-sky-900/10' : 'border-l-orange-500 shadow-orange-100 dark:shadow-orange-900/10'}
-              border-t border-r border-b border-slate-200 dark:border-slate-800
-              ${isExpired ? 'opacity-70 grayscale-[0.5]' : ''}
-            `}>
-              {/* Badge Urgence */}
-              <div className="absolute top-3 right-3 md:top-4 md:right-6 flex flex-col items-end gap-1">
-                 <span className={`px-2 py-0.5 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest border ${
-                    item.urgency === 'URGENT' ? 'bg-red-50 text-red-600 border-red-200' : 
-                    item.urgency === 'INFO' ? 'bg-sky-50 text-sky-600 border-sky-200' : 
-                    'bg-orange-50 text-orange-600 border-orange-200'
-                 }`}>
-                   {item.urgency}
-                 </span>
-                 {item.durationHours && (
-                   <span className={`text-[9px] md:text-[10px] font-bold flex items-center gap-1 ${isExpired ? 'text-red-500' : 'text-slate-400'}`}>
-                      <Timer className="w-3 h-3" /> 
-                      <span className="hidden md:inline">{isExpired ? 'Expiré' : 'Temporaire'}</span>
-                   </span>
-                 )}
-              </div>
+                bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none
+                border border-slate-100 dark:border-slate-800 p-6 md:p-8 relative overflow-hidden 
+                group cursor-pointer transition-all duration-300 
+                hover:-translate-y-1 hover:shadow-[0_20px_40px_rgb(135,206,235,0.15)] dark:hover:shadow-lg dark:hover:shadow-[#87CEEB]/5
+                hover:bg-slate-50 dark:hover:bg-slate-800/30
+                ${isExpired ? 'opacity-70 grayscale-[0.5]' : ''}
+              `}
+            >
+              {/* Bordure latérale gauche basée sur l'urgence (fine) */}
+              <div className={`absolute left-0 top-0 bottom-0 w-1.5 
+                ${item.urgency === 'URGENT' ? 'bg-red-500' : item.urgency === 'INFO' ? 'bg-[#87CEEB]' : 'bg-orange-500'}
+              `}></div>
 
-              <div className="flex items-center gap-3 mb-3 md:mb-4">
-                 <div className="scale-90 md:scale-100 origin-left">
-                   <UserAvatar user={author} size="md" />
+              {/* Header avec Avatar, Nom et Badges */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pl-3">
+                 <div className="flex items-center gap-3">
+                    <div className="ring-2 ring-white dark:ring-slate-900 rounded-full shadow-sm bg-slate-100 dark:bg-slate-800">
+                      <UserAvatar user={author} size="md" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{author?.name || 'Inconnu'}</p>
+                      <p className="text-xs font-medium text-slate-400 flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3" />
+                        {format(new Date(item.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                      </p>
+                    </div>
                  </div>
-                 <div>
-                    <p className="text-sm font-bold text-slate-800 dark:text-white leading-tight">{author?.name || 'Inconnu'}</p>
-                    <p className="text-xs font-medium text-slate-500 flex items-center gap-1 mt-0.5">
-                       <Clock className="w-3 h-3" />
-                       {format(new Date(item.date), 'dd MMM yyyy HH:mm', { locale: fr })}
-                    </p>
+
+                 <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
+                    {/* Badge Urgence */}
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                        item.urgency === 'URGENT' ? 'bg-red-50 text-red-600 border-red-100' : 
+                        item.urgency === 'INFO' ? 'bg-sky-50 text-[#0369A1] border-sky-100' : 
+                        'bg-orange-50 text-orange-600 border-orange-100'
+                    }`}>
+                      {item.urgency}
+                    </span>
+
+                    {/* Badge Durée */}
+                    {item.durationHours && (
+                      <span className={`text-[10px] font-bold flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-md ${isExpired ? 'text-red-500' : 'text-slate-500'}`}>
+                          <Timer className="w-3 h-3" /> 
+                          {isExpired ? 'Expiré' : `${item.durationHours}h`}
+                      </span>
+                    )}
                  </div>
               </div>
 
-              <h3 className="text-lg md:text-xl font-black text-slate-800 dark:text-white mb-2 md:mb-3 pr-16 md:pr-0 line-clamp-2 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors duration-300">
-                {isExpired && <span className="text-red-500 mr-2">[EXPIRÉ]</span>}
-                {item.title}
-              </h3>
-              
-              <div className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-medium text-sm md:text-base line-clamp-3">
-                {item.content}
-              </div>
-              <div className="mt-2 flex items-center gap-1 text-sky-600 font-bold text-sm opacity-80 group-hover:opacity-100 transition">
-                  <Eye className="w-4 h-4"/> Lire la suite
+              {/* Contenu */}
+              <div className="pl-3 md:pr-10">
+                <h3 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white mb-3 leading-tight group-hover:text-[#0EA5E9] transition-colors duration-300">
+                  {isExpired && <span className="text-red-500 mr-2 text-lg">[EXPIRÉ]</span>}
+                  {item.title}
+                </h3>
+                
+                <div className="text-slate-600 dark:text-slate-300 leading-relaxed text-base font-medium mb-4 line-clamp-3">
+                  {item.content}
+                </div>
+                
+                <div className="flex items-center gap-1 text-[#87CEEB] font-bold text-sm group-hover:translate-x-1 transition-transform">
+                    <span>Lire la suite</span> <ChevronRight className="w-4 h-4" />
+                </div>
               </div>
 
-              {/* Barre d'actions */}
-              <div className="flex flex-wrap gap-2 w-full md:w-auto mt-4 md:mt-6 border-t border-slate-100 dark:border-slate-800 pt-3 md:pt-4 justify-end">
-                  {/* Bouton Voir */}
+              {/* Footer Actions (Visible au survol sur desktop, toujours visible si mobile) */}
+              <div className="mt-6 pt-4 border-t border-slate-50 dark:border-slate-800/50 flex flex-wrap gap-2 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
                   <button 
                     onClick={(e) => { e.stopPropagation(); setViewingItem(item); }}
-                    className="flex-1 md:flex-none p-2 text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition active:scale-95 flex items-center justify-center gap-2"
-                    title="Voir les détails"
+                    className="p-2.5 text-slate-400 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:text-[#0EA5E9] hover:border-[#87CEEB] rounded-xl transition shadow-sm"
+                    title="Voir"
                   >
-                    <Eye className="w-4 h-4" /> <span className="md:hidden text-xs font-bold">Voir</span>
+                    <Eye className="w-4 h-4" />
                   </button>
 
-                  {/* Bouton Copier */}
                   <button 
                     onClick={(e) => { e.stopPropagation(); handleCopy(item); }}
-                    className="flex-1 md:flex-none p-2 text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition active:scale-95 flex items-center justify-center gap-2"
-                    title="Copier le contenu"
+                    className="p-2.5 text-slate-400 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:text-[#0EA5E9] hover:border-[#87CEEB] rounded-xl transition shadow-sm"
+                    title="Copier"
                   >
-                    <Copy className="w-4 h-4" /> <span className="md:hidden text-xs font-bold">Copier</span>
+                    <Copy className="w-4 h-4" />
                   </button>
 
-                  {/* Bouton Partager */}
                   <button 
                     onClick={(e) => { e.stopPropagation(); setShareConfirmation(item); }}
-                    className="flex-1 md:flex-none p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition active:scale-95 flex items-center justify-center gap-2"
-                    title="Envoyer par email"
+                    className="p-2.5 text-slate-400 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:text-emerald-500 hover:border-emerald-400 rounded-xl transition shadow-sm"
+                    title="Partager"
                   >
-                    <Send className="w-4 h-4" /> <span className="md:hidden text-xs font-bold">Partager</span>
+                    <Send className="w-4 h-4" />
                   </button>
                   
                   {isAuthor && (
                     <>
                       <button 
                         onClick={(e) => { e.stopPropagation(); openEdit(item); }} 
-                        className="flex-1 md:flex-none p-2 rounded-lg transition active:scale-95 flex items-center justify-center gap-2"
-                        style={{ color: '#87CEEB', backgroundColor: 'rgba(135, 206, 235, 0.1)' }}
+                        className="p-2.5 text-slate-400 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:text-[#0EA5E9] hover:border-[#87CEEB] rounded-xl transition shadow-sm"
                         title="Modifier"
                       >
-                        <Pencil className="w-4 h-4" /> <span className="md:hidden text-xs font-bold">Modifier</span>
+                        <Pencil className="w-4 h-4" />
                       </button>
 
                       <button 
                         onClick={(e) => { e.stopPropagation(); deleteAnnouncement(item.id); }} 
-                        className="flex-1 md:flex-none p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition active:scale-95 flex items-center justify-center gap-2"
+                        className="p-2.5 text-slate-400 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:text-red-500 hover:border-red-400 rounded-xl transition shadow-sm"
                         title="Supprimer"
                       >
-                        <Trash2 className="w-4 h-4" /> <span className="md:hidden text-xs font-bold">Supprimer</span>
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </>
                   )}
@@ -494,33 +536,71 @@ export const Infos: React.FC = () => {
         })}
       </div>
 
+      {/* --- PAGINATION CONTROLS --- */}
+      {totalPages > 1 && (
+         <div className="flex justify-center items-center gap-2 mt-10 pt-6 border-t border-slate-100 dark:border-slate-800">
+            <button 
+               onClick={() => paginate(currentPage - 1)} 
+               disabled={currentPage === 1}
+               className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
+            >
+               <ChevronLeft className="w-5 h-5" />
+            </button>
+            
+            <div className="flex gap-2">
+               {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
+                  <button
+                     key={number}
+                     onClick={() => paginate(number)}
+                     className={`w-12 h-12 rounded-2xl text-sm font-bold flex items-center justify-center transition shadow-sm ${
+                        currentPage === number 
+                        ? 'bg-[#0EA5E9] text-white shadow-[#87CEEB]/40' 
+                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                     }`}
+                  >
+                     {number}
+                  </button>
+               ))}
+            </div>
+
+            <button 
+               onClick={() => paginate(currentPage + 1)} 
+               disabled={currentPage === totalPages}
+               className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
+            >
+               <ChevronRight className="w-5 h-5" />
+            </button>
+         </div>
+      )}
+
       {/* --- MODAL DETAIL (VIEWING ITEM) --- */}
       {viewingItem && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[160] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setViewingItem(null)}>
-           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingItem(null)} className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition z-10">
-                <X className="w-5 h-5 text-slate-500" />
+           <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto relative" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setViewingItem(null)} className="absolute top-6 right-6 p-2 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition z-10 text-slate-500">
+                <X className="w-5 h-5" />
               </button>
               
-              <div className="p-6 md:p-8">
-                 <div className="flex items-start gap-4 mb-6">
+              <div className="p-8 md:p-10">
+                 <div className="flex items-start gap-4 mb-8">
                     <UserAvatar user={users.find(u => u.id === viewingItem.authorId)} size="lg" />
                     <div className="flex-1">
-                       <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white leading-tight mb-2">{viewingItem.title}</h3>
+                       <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white leading-tight mb-3">{viewingItem.title}</h3>
                        
                        <div className="flex flex-wrap items-center gap-3">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border ${
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-widest border ${
                               viewingItem.urgency === 'URGENT' ? 'bg-red-50 text-red-600 border-red-200' : 
-                              viewingItem.urgency === 'INFO' ? 'bg-sky-50 text-sky-600 border-sky-200' : 
+                              viewingItem.urgency === 'INFO' ? 'bg-sky-50 text-[#0369A1] border-sky-200' : 
                               'bg-orange-50 text-orange-600 border-orange-200'
                           }`}>
                             {viewingItem.urgency}
                           </span>
-                          <span className="text-slate-500 font-medium text-sm flex items-center gap-1">
-                            {users.find(u => u.id === viewingItem.authorId)?.name}
+                          <span className="text-slate-500 font-bold text-sm flex items-center gap-2">
+                             par {users.find(u => u.id === viewingItem.authorId)?.name}
                           </span>
+                          <span className="text-slate-300 font-light text-sm hidden md:inline">•</span>
                           <span className="text-slate-400 font-medium text-sm flex items-center gap-1">
-                            • <Clock className="w-3 h-3" /> {format(new Date(viewingItem.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                             <Clock className="w-3 h-3" /> {format(new Date(viewingItem.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
                           </span>
                        </div>
 
@@ -532,15 +612,15 @@ export const Infos: React.FC = () => {
                     </div>
                  </div>
                  
-                 <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed text-base md:text-lg whitespace-pre-wrap">
+                 <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed text-lg whitespace-pre-wrap font-medium">
                     {viewingItem.content}
                  </div>
 
-                 <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
-                    <button onClick={() => handleCopy(viewingItem)} className="px-4 py-3 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition flex items-center gap-2">
-                        <Copy className="w-4 h-4"/> Copier
+                 <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+                    <button onClick={() => handleCopy(viewingItem)} className="px-5 py-3 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-700 transition flex items-center gap-2">
+                        <Copy className="w-4 h-4"/> <span className="hidden md:inline">Copier le texte</span>
                     </button>
-                    <button onClick={() => setViewingItem(null)} className="px-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition w-full md:w-auto">Fermer</button>
+                    <button onClick={() => setViewingItem(null)} className="px-8 py-3 bg-[#0EA5E9] text-white font-bold rounded-2xl hover:bg-[#0284C7] shadow-lg shadow-[#87CEEB]/30 transition">Fermer</button>
                  </div>
               </div>
            </div>
@@ -550,17 +630,17 @@ export const Infos: React.FC = () => {
       {/* --- MODAL CONFIRMATION PARTAGE --- */}
       {shareConfirmation && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[170] flex items-center justify-center p-4 animate-in fade-in">
-           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                 <Mail className="w-8 h-8" />
+           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center border border-slate-100 dark:border-slate-800">
+              <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+                 <Mail className="w-10 h-10" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Confirmer le partage</h3>
-              <p className="text-slate-500 mb-6">
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Confirmer le partage</h3>
+              <p className="text-slate-500 font-medium mb-8 leading-relaxed">
                 Voulez-vous envoyer l'annonce <strong>"{shareConfirmation.title}"</strong> par email à tous les membres de la classe ?
               </p>
-              <div className="flex gap-3">
-                 <button onClick={() => setShareConfirmation(null)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition">Annuler</button>
-                 <button onClick={handleConfirmShare} className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition shadow-lg shadow-emerald-500/20">Envoyer</button>
+              <div className="flex gap-4">
+                 <button onClick={() => setShareConfirmation(null)} className="flex-1 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition">Annuler</button>
+                 <button onClick={handleConfirmShare} className="flex-1 py-3.5 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 transition shadow-lg shadow-emerald-500/20">Envoyer</button>
               </div>
            </div>
         </div>
@@ -569,51 +649,52 @@ export const Infos: React.FC = () => {
       {/* --- MODAL CREATION/EDITION --- */}
       {isModalOpen && canCreate && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[160] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 dark:text-white uppercase tracking-wide">
+          <div className="bg-white dark:bg-slate-900 rounded-t-[2.5rem] md:rounded-[2rem] shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
+              <h3 className="font-black text-xl text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                <span className="w-2 h-6 bg-[#0EA5E9] rounded-full"></span>
                 {editingId ? 'Modifier l\'annonce' : 'Nouvelle Annonce'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2 rounded-full transition">
+              <button onClick={() => setIsModalOpen(false)} className="bg-white dark:bg-slate-900 text-slate-400 hover:text-slate-600 p-2 rounded-full transition shadow-sm border border-slate-100 dark:border-slate-800">
                 <X className="w-6 h-6" />
               </button>
             </div>
             
-            <div className="overflow-y-auto p-6 bg-white dark:bg-slate-900">
+            <div className="overflow-y-auto p-8 bg-white dark:bg-slate-900">
               <form onSubmit={handleSubmit} className="space-y-6">
                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Titre</label>
-                    <input required type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-lg font-bold focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition text-slate-800 dark:text-white" placeholder="Ex: Sortie pédagogique..." />
+                    <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Titre</label>
+                    <input required type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-lg font-bold focus:ring-4 focus:ring-[#87CEEB]/20 focus:border-[#0EA5E9] outline-none transition text-slate-800 dark:text-white placeholder-slate-400" placeholder="Ex: Sortie pédagogique..." />
                  </div>
 
                  <div>
                     <div className="flex justify-between items-center mb-2">
-                       <label className="block text-xs font-bold text-slate-500 uppercase">Contenu</label>
-                       <div className="flex gap-2">
-                        <button type="button" onClick={handleCorrection} disabled={isCorrecting || !content} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 disabled:opacity-50">
-                            {isCorrecting ? <span className="animate-spin">⏳</span> : <Wand2 className="w-3 h-3" />} Corriger l'orthographe
+                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Contenu</label>
+                       <div className="flex gap-3">
+                        <button type="button" onClick={handleCorrection} disabled={isCorrecting || !content} className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100 flex items-center gap-1 disabled:opacity-50 transition">
+                            {isCorrecting ? <span className="animate-spin">⏳</span> : <Wand2 className="w-3 h-3" />} Corriger
                         </button>
-                        <button type="button" onClick={handleGenerateAI} disabled={isGenerating || !title} className="text-xs font-bold text-purple-600 hover:text-purple-700 flex items-center gap-1 disabled:opacity-50">
-                            {isGenerating ? <span className="animate-spin">✨</span> : <Sparkles className="w-3 h-3" />} Générer avec IA
+                        <button type="button" onClick={handleGenerateAI} disabled={isGenerating || !title} className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg hover:bg-purple-100 flex items-center gap-1 disabled:opacity-50 transition">
+                            {isGenerating ? <span className="animate-spin">✨</span> : <Sparkles className="w-3 h-3" />} IA
                         </button>
                        </div>
                     </div>
-                    <textarea required value={content} onChange={e => setContent(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-base min-h-[150px] focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition leading-relaxed text-slate-800 dark:text-white" placeholder="Détails de l'annonce..." />
+                    <textarea required value={content} onChange={e => setContent(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-base min-h-[200px] focus:ring-4 focus:ring-[#87CEEB]/20 focus:border-[#0EA5E9] outline-none transition leading-relaxed text-slate-800 dark:text-white placeholder-slate-400 font-medium resize-none" placeholder="Détails de l'annonce..." />
                  </div>
                  
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Urgence</label>
-                        <div className="flex gap-3">
+                        <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Niveau d'urgence</label>
+                        <div className="flex gap-2">
                         {[Urgency.INFO, Urgency.NORMAL, Urgency.URGENT].map(u => (
                             <button
                                 key={u}
                                 type="button"
                                 onClick={() => setUrgency(u)}
-                                className={`flex-1 py-3 rounded-xl text-sm font-bold border transition capitalize ${
+                                className={`flex-1 py-3 rounded-2xl text-xs font-bold border-2 transition capitalize ${
                                 urgency === u 
-                                ? u === Urgency.URGENT ? 'bg-red-50 border-red-200 text-red-600 ring-2 ring-red-500/20' : u === Urgency.INFO ? 'bg-sky-50 border-sky-200 text-sky-600 ring-2 ring-sky-500/20' : 'bg-orange-50 border-orange-200 text-orange-600 ring-2 ring-orange-500/20'
-                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                ? u === Urgency.URGENT ? 'bg-red-50 border-red-500 text-red-600 shadow-sm' : u === Urgency.INFO ? 'bg-sky-50 border-sky-500 text-sky-600 shadow-sm' : 'bg-orange-50 border-orange-500 text-orange-600 shadow-sm'
+                                : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
                                 }`}
                             >
                                 {u}
@@ -623,28 +704,27 @@ export const Infos: React.FC = () => {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Durée (Heures) - Optionnel</label>
+                        <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Durée (Heures)</label>
                         <div className="relative">
-                            <Timer className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                            <Timer className="absolute left-4 top-4 w-5 h-5 text-slate-400" />
                             <input 
                                 type="number" 
                                 min="1"
                                 value={durationHours} 
                                 onChange={e => setDurationHours(e.target.value === '' ? '' : Number(e.target.value))} 
-                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 pl-10 text-base font-bold focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition text-slate-800 dark:text-white" 
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5 pl-12 text-base font-bold focus:ring-4 focus:ring-[#87CEEB]/20 focus:border-[#0EA5E9] outline-none transition text-slate-800 dark:text-white placeholder-slate-400" 
                                 placeholder="Illimité" 
                             />
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-1">L'annonce sera masquée automatiquement après ce délai.</p>
                     </div>
                  </div>
 
-                 <div className="flex flex-col-reverse md:flex-row gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-3 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition active:scale-95">
+                 <div className="flex flex-col-reverse md:flex-row gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-3.5 rounded-2xl font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition active:scale-95">
                       Annuler
                     </button>
-                    <button type="submit" className="w-full md:w-2/3 bg-sky-600 text-white py-3 rounded-xl font-bold hover:bg-sky-700 shadow-lg shadow-sky-500/20 transition active:scale-95">
-                      {editingId ? 'Mettre à jour' : 'Publier'}
+                    <button type="submit" className="w-full md:w-2/3 bg-[#0EA5E9] text-white py-3.5 rounded-2xl font-bold hover:bg-[#0284C7] shadow-lg shadow-[#87CEEB]/30 transition active:scale-95">
+                      {editingId ? 'Mettre à jour' : 'Publier l\'annonce'}
                     </button>
                  </div>
               </form>

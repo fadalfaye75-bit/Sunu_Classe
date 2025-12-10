@@ -1,6 +1,5 @@
 
 
-
 import React, { createContext, useContext, useState, PropsWithChildren, useMemo, useEffect } from 'react';
 import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption, SentEmail, EmailConfig } from '../types';
 import { supabase } from '../services/supabaseClient';
@@ -37,6 +36,10 @@ interface AppContextType {
   // Deep Linking State
   highlightedItemId: string | null;
   setHighlightedItemId: (id: string | null) => void;
+
+  // Theme
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
 
   // Actions
   login: (email: string) => Promise<boolean>; 
@@ -92,6 +95,9 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   // Defaulting to "Class Connect"
   const [schoolName, setSchoolNameState] = useState('Class Connect');
   
+  // Theme State
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
   // Email Config State
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({
     provider: 'MAILTO', // Default to client side for safety
@@ -109,6 +115,32 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
 
   // --- Helpers ---
   const getCurrentClass = () => classes.find(c => c.id === user?.classId);
+
+  // Initialize Theme
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme) {
+      setTheme(savedTheme);
+      if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+      else document.documentElement.classList.remove('dark');
+    } else if (systemPrefersDark) {
+      setTheme('dark');
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   const addNotification = (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING', targetPage?: string, resourceId?: string) => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -725,6 +757,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     auditLogs, notifications, notificationHistory,
     addNotification, dismissNotification, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, clearNotificationHistory,
     highlightedItemId, setHighlightedItemId,
+    theme, toggleTheme,
     login, logout, getCurrentClass,
     addAnnouncement, updateAnnouncement, deleteAnnouncement,
     addMeet, updateMeet, deleteMeet,

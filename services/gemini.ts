@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI } from "@google/genai";
 
 // Helper to safely access env vars in Vite environment
@@ -30,20 +28,32 @@ export const generateAnnouncementContent = async (topic: string, role: string): 
     const model = 'gemini-2.5-flash';
     
     const prompt = `
-      Tu es un expert en communication scolaire et pédagogique.
-      Ton rôle : Rédiger une annonce professionnelle, claire et engageante pour une application de classe (SunuClasse).
-      
-      Contexte :
-      - Auteur : ${role} (Enseignant, Responsable ou Délégué).
-      - Cible : Les étudiants de la classe.
-      - Sujet : "${topic}".
+      Tu es le Directeur de la Communication d'un établissement scolaire d'excellence.
+      Ta mission est de rédiger le CORPS d'une annonce pour l'application SunuClasse.
 
-      Instructions :
-      1. Adopte un ton professionnel mais bienveillant.
-      2. Sois direct et concis (environ 40-60 mots).
-      3. Structure le texte pour une lecture rapide sur mobile.
-      4. N'inclus PAS de titre (il est géré à part), seulement le corps du message.
-      5. Ne mets pas de signature générique type "Cordialement".
+      CONTEXTE :
+      - Auteur : ${role}
+      - Sujet brut : "${topic}"
+      - Cible : Étudiants et corps professoral.
+
+      RÈGLES DE RÉDACTION "HYPER-PERFORMANCE" :
+      1. **Structure Visuelle** : Le texte doit être aéré. Utilise des listes à puces si nécessaire.
+      2. **Mise en valeur** : Utilise le format Markdown (**gras**) pour mettre en évidence les dates, les heures, les lieux et les actions requises.
+      3. **Style** : Professionnel, fluide, moderne et bienveillant. Évite le langage administratif robotique.
+      4. **Emojis** : Utilise des émojis pertinents (📍, 📅, ⚠️, 🎓, ✨) avec parcimonie pour guider l'œil (début de paragraphe ou mise en avant).
+      5. **Call to Action** : Termine par une phrase claire indiquant ce que l'élève doit faire (si applicable).
+      6. **Format** : Ne mets PAS de titre (il est géré par l'interface). Rédige uniquement le corps du message.
+
+      Exemple de structure attendue :
+      "Bonjour à tous 👋,
+      
+      Concernant [Sujet], voici les points importants :
+      • Point 1
+      • Point 2
+      
+      📅 **Date clé** : [Date]
+      
+      Merci de votre attention."
     `;
 
     const response = await ai.models.generateContent({
@@ -70,16 +80,22 @@ export const correctFrenchText = async (text: string): Promise<string> => {
     const model = 'gemini-2.5-flash';
     
     const prompt = `
-      Tu es un éditeur senior expert en langue française.
-      Ta mission est de rendre le texte suivant impeccable.
+      Tu es un Éditeur Senior expert en langue française et en communication institutionnelle.
+      Ta mission est de transformer le texte brut ci-dessous en une version "Premium".
 
-      Consignes strictes :
-      1. Corrige toutes les fautes d'orthographe, de grammaire, de syntaxe et de ponctuation.
-      2. Améliore légèrement la fluidité et le style pour que cela sonne naturel et professionnel, SANS changer le sens ni le ton de l'auteur.
-      3. Si le texte est déjà parfait, renvoie-le tel quel.
-      4. Renvoie UNIQUEMENT le texte corrigé, sans guillemets, sans introduction ("Voici le texte corrigé..."), ni explication.
+      INSTRUCTIONS STRICTES :
+      1. **Correction Absolue** : Élimine toute faute d'orthographe, de grammaire et de syntaxe.
+      2. **Amélioration du Style** :
+         - Reformule les phrases lourdes ou maladroites.
+         - Utilise un vocabulaire précis et professionnel.
+         - Supprime les répétitions inutiles.
+      3. **Structure** :
+         - Si le texte est un bloc compact, ajoute des sauts de ligne logiques.
+         - Ajoute des majuscules et la ponctuation manquante.
+      4. **Respect du Sens** : Le message doit rester fidèle à l'intention de l'auteur, ne change pas les faits (dates, noms).
+      5. **Sortie** : Renvoie UNIQUEMENT le texte amélioré, sans guillemets, sans intro ni conclusion de ta part.
 
-      Texte à traiter :
+      TEXTE À SUBLIMER :
       "${text}"
     `;
 
