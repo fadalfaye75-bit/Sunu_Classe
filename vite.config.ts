@@ -9,7 +9,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // Permet de garder la compatibilité avec votre code existant (process.env.API_KEY)
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // Utilise la clé fournie si aucune variable d'environnement n'est définie
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || "AIzaSyA5cX0Kp2QP4nZQ_FJOb5qgxo0aP1q5E3Y")
     },
     build: {
       outDir: 'dist',
