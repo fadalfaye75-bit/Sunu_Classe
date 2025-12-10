@@ -157,7 +157,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   }, [isProfileModalOpen]);
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-slate-950 flex flex-col md:flex-row font-sans text-slate-700 dark:text-slate-200 transition-colors duration-500">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row font-sans text-slate-700 dark:text-slate-200 transition-colors duration-500">
       
       {/* --- TOAST NOTIFICATIONS (Floating Top Center) --- */}
       <div className="fixed top-20 md:top-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-3 w-[90%] md:w-full md:max-w-md px-4 pointer-events-none">
@@ -171,13 +171,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                 if (notif.resourceId) setHighlightedItemId(notif.resourceId);
               }
             }}
-            className="pointer-events-auto bg-white/95 dark:bg-slate-800/95 backdrop-blur-md shadow-premium rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:scale-[1.02] transition-transform animate-in slide-in-from-top-4 duration-300 ring-1 ring-black/5 border-l-4 border-brand-pastel"
+            className="pointer-events-auto bg-white/95 dark:bg-slate-800/95 backdrop-blur-md shadow-premium rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:scale-[1.02] transition-transform animate-in slide-in-from-top-4 duration-300 ring-1 ring-black/5 border-l-4 border-[#87CEEB]"
           >
              <div className={`p-2 rounded-full shrink-0 ${
                notif.type === 'SUCCESS' ? 'bg-emerald-100 text-emerald-600' : 
                notif.type === 'ERROR' ? 'bg-red-100 text-red-600' : 
                notif.type === 'WARNING' ? 'bg-orange-100 text-orange-600' : 
-               'bg-brand-100 text-brand-600'
+               'bg-sky-100 text-sky-600'
              }`}>
                {notif.type === 'SUCCESS' && <CheckCircle className="w-5 h-5" />}
                {notif.type === 'ERROR' && <AlertCircle className="w-5 h-5" />}
@@ -218,7 +218,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
          {/* Center: Logo */}
          <div className="flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-brand-500">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[#0EA5E9]">
               {logoError ? <School className="w-5 h-5 text-[#87CEEB]" /> : <img src={LOGO_UCAD} className="w-full h-full object-contain" onError={() => setLogoError(true)} />}
             </div>
             <span className="font-bold text-lg text-slate-800 dark:text-white tracking-tight">Class Connect</span>
@@ -244,13 +244,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
              
              {/* Brand (Desktop only) */}
              <div className="hidden md:flex p-8 pb-4 items-center gap-4 border-b border-slate-50/50 dark:border-slate-800/50">
-                <div className="w-12 h-12 bg-brand-pastel/20 rounded-2xl flex items-center justify-center p-1 border border-brand-pastel/30 shadow-sm">
+                <div className="w-12 h-12 bg-[#87CEEB]/20 rounded-2xl flex items-center justify-center p-1 border border-[#87CEEB]/30 shadow-sm">
                    {logoError ? <School className="w-7 h-7 text-[#87CEEB]" /> : <img src={LOGO_UCAD} className="w-full h-full object-contain" onError={() => setLogoError(true)} />}
                 </div>
                 <div>
                    <h1 className="font-extrabold text-lg text-slate-800 dark:text-white leading-none tracking-tight">Class Connect</h1>
                    <p className="text-xs text-[#87CEEB] font-bold mt-1.5 uppercase tracking-wider flex items-center gap-1">
-                     <span className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse"></span>
+                     <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse"></span>
                      En Ligne
                    </p>
                 </div>
@@ -295,7 +295,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
              <div className="hidden md:block p-4 mt-auto border-t border-slate-50 dark:border-slate-800">
                 <div 
                   onClick={() => setIsProfileModalOpen(true)}
-                  className="flex items-center gap-3 p-3 rounded-2xl bg-surface-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700/50 hover:shadow-md transition-all cursor-pointer group"
+                  className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700/50 hover:shadow-md transition-all cursor-pointer group"
                 >
                    <UserAvatar user={user} size="sm" className="ring-2 ring-white dark:ring-slate-900 shadow-sm" />
                    <div className="flex-1 min-w-0">
@@ -375,7 +375,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
       </nav>
 
       {/* --- MAIN CONTENT --- */}
-      <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden relative scroll-smooth bg-surface-50 dark:bg-slate-950 flex flex-col pt-4 md:pt-0 pb-20 md:pb-0">
+      <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden relative scroll-smooth bg-slate-50 dark:bg-slate-950 flex flex-col pt-4 md:pt-0 pb-20 md:pb-0">
          
          {/* Desktop Header */}
          <header className="hidden md:flex items-center justify-between px-8 py-6 sticky top-0 z-30 pointer-events-none">
@@ -384,7 +384,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
             <div className="flex items-center gap-4 pointer-events-auto bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-2 rounded-full border border-white/60 dark:border-slate-700 shadow-glass">
                <button 
                  onClick={toggleTheme}
-                 className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white dark:hover:bg-slate-800 transition text-slate-600 dark:text-slate-300 hover:text-brand-500"
+                 className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white dark:hover:bg-slate-800 transition text-slate-600 dark:text-slate-300 hover:text-[#0EA5E9]"
                  title={theme === 'dark' ? "Passer en mode clair" : "Passer en mode sombre"}
                >
                   {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-indigo-500" />}
@@ -392,7 +392,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
                <button 
                   onClick={() => setIsNotifMenuOpen(!isNotifMenuOpen)}
-                  className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white dark:hover:bg-slate-800 transition relative text-slate-600 dark:text-slate-300 hover:text-brand-500"
+                  className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white dark:hover:bg-slate-800 transition relative text-slate-600 dark:text-slate-300 hover:text-[#0EA5E9]"
                >
                   <Bell className="w-5 h-5" />
                   {unreadCount > 0 && <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900"></span>}
@@ -406,8 +406,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
             {/* Notifications Dropdown */}
             {isNotifMenuOpen && (
                <div className="absolute top-20 right-8 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 dark:border-slate-800 overflow-hidden pointer-events-auto animate-in fade-in zoom-in-95 origin-top-right z-50">
-                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-brand-pastel/20">
-                     <h3 className="font-bold text-sm text-brand-900 dark:text-brand-100">Notifications</h3>
+                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-[#87CEEB]/20">
+                     <h3 className="font-bold text-sm text-[#0C4A6E] dark:text-[#E0F2FE]">Notifications</h3>
                      <div className="flex gap-2">
                         {notificationHistory.length > 0 && (
                           <button 
@@ -418,7 +418,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                              <Trash2 className="w-3 h-3" />
                           </button>
                         )}
-                        <button onClick={markAllNotificationsAsRead} className="text-xs text-brand-700 dark:text-brand-300 font-bold hover:underline bg-white/50 dark:bg-black/20 px-2 py-1 rounded">Tout lire</button>
+                        <button onClick={markAllNotificationsAsRead} className="text-xs text-[#0369A1] dark:text-[#7DD3FC] font-bold hover:underline bg-white/50 dark:bg-black/20 px-2 py-1 rounded">Tout lire</button>
                      </div>
                   </div>
                   <div className="max-h-[300px] overflow-y-auto">
@@ -429,9 +429,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                            <div 
                               key={n.id} 
                               onClick={() => handleNotificationClick(n)}
-                              className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition cursor-pointer flex gap-3 group relative ${!n.read ? 'bg-brand-pastel/10' : ''}`}
+                              className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition cursor-pointer flex gap-3 group relative ${!n.read ? 'bg-[#87CEEB]/10' : ''}`}
                            >
-                              <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${!n.read ? 'bg-brand-500' : 'bg-transparent'}`}></div>
+                              <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${!n.read ? 'bg-[#0EA5E9]' : 'bg-transparent'}`}></div>
                               <div className="flex-1 pr-6">
                                 <p className="text-sm text-slate-700 dark:text-slate-200 leading-snug">{n.message}</p>
                                 <p className="text-[10px] text-slate-400 mt-1 font-medium">{formatDistanceToNow(new Date(n.timestamp || Date.now()), { addSuffix: true, locale: fr })}</p>
@@ -460,14 +460,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
          <footer className="hidden md:block mt-auto border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm py-8 px-8">
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
                <div className="flex items-center gap-3">
-                  <School className="w-5 h-5 text-brand-pastel" />
+                  <School className="w-5 h-5 text-[#87CEEB]" />
                   <span className="text-sm font-bold text-slate-600 dark:text-slate-400">Class Connect © 2025</span>
                </div>
                
                <div className="flex items-center gap-4">
-                  <a href="#" className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-brand-pastel/20 hover:text-brand-600 dark:hover:text-brand-400 transition text-slate-500 dark:text-slate-400"><Twitter className="w-4 h-4"/></a>
-                  <a href="#" className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-brand-pastel/20 hover:text-brand-600 dark:hover:text-brand-400 transition text-slate-500 dark:text-slate-400"><Github className="w-4 h-4"/></a>
-                  <a href="#" className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-brand-pastel/20 hover:text-brand-600 dark:hover:text-brand-400 transition text-slate-500 dark:text-slate-400"><Globe className="w-4 h-4"/></a>
+                  <a href="#" className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-[#87CEEB]/20 hover:text-[#0284C7] dark:hover:text-[#38BDF8] transition text-slate-500 dark:text-slate-400"><Twitter className="w-4 h-4"/></a>
+                  <a href="#" className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-[#87CEEB]/20 hover:text-[#0284C7] dark:hover:text-[#38BDF8] transition text-slate-500 dark:text-slate-400"><Github className="w-4 h-4"/></a>
+                  <a href="#" className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-[#87CEEB]/20 hover:text-[#0284C7] dark:hover:text-[#38BDF8] transition text-slate-500 dark:text-slate-400"><Globe className="w-4 h-4"/></a>
                </div>
             </div>
          </footer>
@@ -483,7 +483,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                  
                  <div className="relative inline-block mt-2 mb-4 group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                     <UserAvatar user={user} size="xl" className="ring-4 ring-white dark:ring-slate-900 shadow-premium" />
-                    <div className="absolute inset-0 bg-brand-900/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-[1px]">
+                    <div className="absolute inset-0 bg-[#0C4A6E]/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-[1px]">
                        <Upload className="w-6 h-6 text-white" />
                     </div>
                  </div>
@@ -493,7 +493,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                    {user?.role}
                  </div>
               </div>
-              <div className="p-6 bg-surface-50 dark:bg-slate-950 space-y-6">
+              <div className="p-6 bg-slate-50 dark:bg-slate-950 space-y-6">
                  {/* Avatar Selection */}
                  <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 text-center">Choisir un avatar</p>
@@ -526,7 +526,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                             placeholder="Nouveau mot de passe"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:border-brand-pastel outline-none dark:text-white"
+                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:border-[#87CEEB] outline-none dark:text-white"
                             required
                           />
                         </div>
@@ -536,7 +536,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                             placeholder="Confirmer mot de passe"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:border-brand-pastel outline-none dark:text-white"
+                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:border-[#87CEEB] outline-none dark:text-white"
                             required
                           />
                         </div>
