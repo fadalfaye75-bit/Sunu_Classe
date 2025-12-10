@@ -124,6 +124,36 @@ export const correctFrenchText = async (text: string): Promise<string> => {
   return correctTextAdvanced(text, 'FIX');
 };
 
+// --- SONDAGES ---
+export const rephrasePollQuestion = async (question: string): Promise<string> => {
+  try {
+    const ai = getClient();
+    const model = 'gemini-2.5-flash';
+    
+    const prompt = `
+      Tu es un expert en communication et engagement communautaire.
+      Reformule la question de sondage suivante pour qu'elle soit :
+      1. Plus claire et concise.
+      2. Plus engageante pour encourager le vote.
+      3. Neutre et impartiale.
+
+      Question originale : "${question}"
+
+      Sortie attendue : Uniquement la question reformulée, sans guillemets ni texte introductif.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: prompt,
+    });
+
+    return response.text?.trim() || question;
+  } catch (error) {
+    console.error("Rephrase Error:", error);
+    return question;
+  }
+};
+
 // --- CHATBOT ASSISTANT ---
 export interface ChatMessage {
   role: 'user' | 'model';

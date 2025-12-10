@@ -3,10 +3,10 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Poll } from '../types';
-import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send, Lock, Unlock, Timer, Wand2, Copy } from 'lucide-react';
+import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send, Lock, Unlock, Timer, Wand2, Copy, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { addHours, isAfter } from 'date-fns';
-import { correctFrenchText } from '../services/gemini';
+import { correctFrenchText, rephrasePollQuestion } from '../services/gemini';
 
 export const Polls: React.FC = () => {
   const { user, polls, addPoll, updatePoll, votePoll, deletePoll, shareResource, addNotification } = useApp();
@@ -18,6 +18,7 @@ export const Polls: React.FC = () => {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [durationHours, setDurationHours] = useState<number | ''>('');
   const [isCorrecting, setIsCorrecting] = useState(false);
+  const [isReformulating, setIsReformulating] = useState(false);
 
   // Permission: Responsable OR Admin can create/manage
   const canManage = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
@@ -70,6 +71,24 @@ export const Polls: React.FC = () => {
       addNotification("Erreur de correction.", "ERROR");
     } finally {
       setIsCorrecting(false);
+    }
+  };
+
+  const handleReformulation = async () => {
+    if (!question) return;
+    setIsReformulating(true);
+    try {
+      const rephrased = await rephrasePollQuestion(question);
+      if (rephrased && rephrased !== question) {
+        setQuestion(rephrased);
+        addNotification("Question reformulée pour plus d'impact !", "SUCCESS");
+      } else {
+        addNotification("Impossible de proposer une meilleure formulation.", "INFO");
+      }
+    } catch (e) {
+      addNotification("Erreur lors de la reformulation.", "ERROR");
+    } finally {
+      setIsReformulating(false);
     }
   };
 
@@ -341,9 +360,14 @@ export const Polls: React.FC = () => {
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="block text-xs font-bold text-slate-500 uppercase">Question</label>
-                    <button type="button" onClick={handleCorrection} disabled={isCorrecting || !question} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 disabled:opacity-50">
-                        {isCorrecting ? <span className="animate-spin">⏳</span> : <Wand2 className="w-3 h-3" />} Corriger
-                    </button>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={handleReformulation} disabled={isReformulating || !question} className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg hover:bg-indigo-100 flex items-center gap-1 disabled:opacity-50 transition">
+                          {isReformulating ? <span className="animate-spin">✨</span> : <RefreshCw className="w-3 h-3" />} Reformuler
+                      </button>
+                      <button type="button" onClick={handleCorrection} disabled={isCorrecting || !question} className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100 flex items-center gap-1 disabled:opacity-50 transition">
+                          {isCorrecting ? <span className="animate-spin">⏳</span> : <Wand2 className="w-3 h-3" />} Corriger
+                      </button>
+                    </div>
                   </div>
                   <input required type="text" value={question} onChange={e => setQuestion(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-base focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition font-medium text-slate-800 dark:text-white" />
                 </div>
