@@ -1,3 +1,4 @@
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -8,9 +9,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // Permet de garder la compatibilité avec votre code existant (process.env.API_KEY)
-      // Utilise la clé fournie si aucune variable d'environnement n'est définie
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || "AIzaSyA5cX0Kp2QP4nZQ_FJOb5qgxo0aP1q5E3Y")
+      // Configuration sécurisée : On lit la variable d'environnement injectée par Vercel ou le fichier .env
+      // Si aucune clé n'est trouvée, l'IA ne fonctionnera pas (ce qui est mieux que d'exposer la clé publiquement)
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || "")
     },
     build: {
       outDir: 'dist',

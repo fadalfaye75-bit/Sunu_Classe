@@ -1,3 +1,4 @@
+
 # 🏫 SunuClasse - Plateforme de Gestion Scolaire
 
 **SunuClasse** est une application web moderne (React + TypeScript + Supabase) conçue pour digitaliser la vie de classe en Afrique et ailleurs. Elle permet une gestion fluide des emplois du temps, examens, sondages et visioconférences.
@@ -29,8 +30,8 @@ cd sunuclasse
 npm install
 ```
 
-### 2. Configuration
-Créez un fichier `.env` à la racine si vous souhaitez tester l'IA Gemini en local (Optionnel) :
+### 2. Configuration Locale
+Créez un fichier `.env` à la racine pour tester l'IA Gemini en local :
 ```env
 API_KEY=votre_cle_google_gemini
 ```
@@ -53,18 +54,18 @@ Une fois la base de données Supabase connectée (voir script SQL fourni), voici
 | **Responsable** | `diallo@eco.com` | `(au choix)` |
 | **Étudiant** | `ami@student.com` | `(au choix)` |
 
-> **Note** : L'authentification actuelle vérifie uniquement l'existence de l'email dans la table `users`.
-
 ---
 
-## 📦 Déploiement (Vercel)
+## 📦 Déploiement sur Vercel (Production)
 
-Ce projet est configuré pour un déploiement "Zero Config" sur Vercel.
+Ce projet est optimisé pour Vercel. Voici comment configurer la clé API de l'IA :
 
-1.  Poussez votre code sur GitHub.
-2.  Importez le projet sur Vercel.
-3.  Ajoutez la variable d'environnement `API_KEY` (pour Gemini) dans les réglages Vercel.
-4.  Déployez !
+1.  Importez le projet sur Vercel via GitHub.
+2.  Allez dans **Settings > Environment Variables**.
+3.  Ajoutez une nouvelle variable :
+    *   **Key**: `API_KEY`
+    *   **Value**: `AIzaSy...` (Votre clé Google Gemini)
+4.  Redéployez l'application pour que la clé soit prise en compte.
 
 ---
 
