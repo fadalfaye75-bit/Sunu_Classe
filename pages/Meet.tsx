@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, MeetSession } from '../types';
-import { Video, Plus, Trash2, ExternalLink, AlertCircle, Pencil, User, Send, X, Copy } from 'lucide-react';
+import { Video, Plus, Trash2, ExternalLink, AlertCircle, Pencil, User, Send, X, Copy, Mail } from 'lucide-react';
 import { format, isBefore, addMinutes, isAfter } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -10,6 +10,12 @@ export const Meet: React.FC = () => {
   const { user, meets, addMeet, updateMeet, deleteMeet, shareResource, addNotification } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
+  // Share Confirmation State
+  const [shareConfirmation, setShareConfirmation] = useState<MeetSession | null>(null);
+  
+  // Delete Confirmation State
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
   const [teacher, setTeacher] = useState('');
@@ -52,6 +58,20 @@ export const Meet: React.FC = () => {
       }).catch(() => {
           addNotification("Erreur lors de la copie", "ERROR");
       });
+  };
+
+  const handleConfirmShare = () => {
+    if (shareConfirmation) {
+      shareResource('MEET', shareConfirmation);
+      setShareConfirmation(null);
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteId) {
+      deleteMeet(deleteId);
+      setDeleteId(null);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -174,7 +194,7 @@ export const Meet: React.FC = () => {
                      {isAuthor && (
                        <>
                           <button 
-                            onClick={() => shareResource('MEET', meet)}
+                            onClick={() => setShareConfirmation(meet)}
                             className="flex-1 p-2.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex justify-center items-center transition border border-emerald-100"
                           >
                             <Send className="w-4 h-4" />
@@ -187,7 +207,7 @@ export const Meet: React.FC = () => {
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => deleteMeet(meet.id)}
+                            onClick={() => setDeleteId(meet.id)}
                             className="flex-1 p-2.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg flex justify-center items-center transition border border-red-100"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -245,6 +265,33 @@ export const Meet: React.FC = () => {
               </form>
             </div>
           </div>
+        </div>
+      )}
+
+      {shareConfirmation && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[170] flex items-center justify-center p-4 animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center border border-slate-100 dark:border-slate-800">
+              <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm"><Mail className="w-10 h-10" /></div>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Partager le lien</h3>
+              <p className="text-slate-500 font-medium mb-8 leading-relaxed">Voulez-vous envoyer les détails du cours <strong>"{shareConfirmation.subject}"</strong> par email à la classe ?</p>
+              <div className="flex gap-4">
+                 <button onClick={() => setShareConfirmation(null)} className="flex-1 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition">Annuler</button>
+                 <button onClick={handleConfirmShare} className="flex-1 py-3.5 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 transition shadow-lg shadow-emerald-500/20">Envoyer</button>
+              </div>
+           </div>
+        </div>
+      )}
+      {deleteId && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[180] flex items-center justify-center p-4 animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center border border-slate-100 dark:border-slate-800 transform transition-all scale-100">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm"><Trash2 className="w-8 h-8" /></div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Supprimer le Meet ?</h3>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mb-6">Êtes-vous sûr de vouloir supprimer cette session ? Cette action est irréversible.</p>
+              <div className="flex gap-3">
+                 <button onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition">Annuler</button>
+                 <button onClick={handleConfirmDelete} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-500/20">Supprimer</button>
+              </div>
+           </div>
         </div>
       )}
     </div>

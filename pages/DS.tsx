@@ -18,6 +18,9 @@ export const DS: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
 
+  // Delete Confirmation State
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
   // Création réservée aux Responsables ou Admins (pour éviter les trolls)
   const canCreate = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
   const isAdmin = user?.role === Role.ADMIN;
@@ -65,6 +68,13 @@ export const DS: React.FC = () => {
       }).catch(() => {
           addNotification("Erreur lors de la copie", "ERROR");
       });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteId) {
+      deleteExam(deleteId);
+      setDeleteId(null);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -241,7 +251,7 @@ export const DS: React.FC = () => {
                         </button>
                         
                         <button 
-                          onClick={() => deleteExam(exam.id)}
+                          onClick={() => setDeleteId(exam.id)}
                           className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition text-sm font-bold border border-red-100"
                         >
                           <Trash2 className="w-4 h-4" /> <span className="md:hidden">Supprimer</span>
@@ -304,6 +314,19 @@ export const DS: React.FC = () => {
               </form>
             </div>
           </div>
+        </div>
+      )}
+      {deleteId && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[180] flex items-center justify-center p-4 animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center border border-slate-100 dark:border-slate-800 transform transition-all scale-100">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm"><Trash2 className="w-8 h-8" /></div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Supprimer l'examen ?</h3>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mb-6">Êtes-vous sûr de vouloir supprimer cet examen ? Cette action est irréversible.</p>
+              <div className="flex gap-3">
+                 <button onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition">Annuler</button>
+                 <button onClick={handleConfirmDelete} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-500/20">Supprimer</button>
+              </div>
+           </div>
         </div>
       )}
     </div>

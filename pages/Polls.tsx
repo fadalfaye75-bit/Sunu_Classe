@@ -16,6 +16,9 @@ export const Polls: React.FC = () => {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [durationHours, setDurationHours] = useState<number | ''>('');
 
+  // Delete Confirmation State
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
   // Permission: Responsable OR Admin can create/manage
   const canManage = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
   const isAdmin = user?.role === Role.ADMIN;
@@ -60,6 +63,13 @@ export const Polls: React.FC = () => {
       }).catch(() => {
           addNotification("Erreur lors de la copie", "ERROR");
       });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteId) {
+      deletePoll(deleteId);
+      setDeleteId(null);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -206,7 +216,7 @@ export const Polls: React.FC = () => {
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
-                    <button onClick={() => deletePoll(poll.id)} className="flex-1 md:flex-none justify-center text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 p-2.5 rounded-lg transition active:scale-95">
+                    <button onClick={() => setDeleteId(poll.id)} className="flex-1 md:flex-none justify-center text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 p-2.5 rounded-lg transition active:scale-95">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -367,6 +377,19 @@ export const Polls: React.FC = () => {
               </form>
             </div>
           </div>
+        </div>
+      )}
+      {deleteId && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[180] flex items-center justify-center p-4 animate-in fade-in">
+           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center border border-slate-100 dark:border-slate-800 transform transition-all scale-100">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm"><Trash2 className="w-8 h-8" /></div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Supprimer le sondage ?</h3>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mb-6">Êtes-vous sûr de vouloir supprimer ce sondage ? Cette action est irréversible.</p>
+              <div className="flex gap-3">
+                 <button onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition">Annuler</button>
+                 <button onClick={handleConfirmDelete} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-500/20">Supprimer</button>
+              </div>
+           </div>
         </div>
       )}
     </div>
