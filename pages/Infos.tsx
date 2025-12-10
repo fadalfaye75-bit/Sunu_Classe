@@ -2,8 +2,7 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Urgency, Announcement } from '../types';
-import { generateAnnouncementContent, correctFrenchText } from '../services/gemini';
-import { Megaphone, Trash2, Clock, Sparkles, Pencil, Plus, X, ArrowUpDown, Filter, Send, Mail, User, AlertCircle, Timer, Search, Archive, Wand2, Eye, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Megaphone, Trash2, Clock, Plus, X, ArrowUpDown, Filter, Send, Mail, User, AlertCircle, Timer, Search, Archive, Eye, Copy, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { format, isAfter, isBefore, startOfDay, endOfDay, addHours } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from '../components/UserAvatar';
@@ -57,8 +56,6 @@ export const Infos: React.FC = () => {
   const [content, setContent] = useState('');
   const [urgency, setUrgency] = useState<Urgency>(Urgency.NORMAL);
   const [durationHours, setDurationHours] = useState<number | ''>(''); // State for duration
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isCorrecting, setIsCorrecting] = useState(false);
   
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
 
@@ -121,32 +118,6 @@ export const Infos: React.FC = () => {
     setDurationHours(item.durationHours || '');
     setTargetRoles([]);
     setIsModalOpen(true);
-  };
-
-  const handleGenerateAI = async () => {
-    if (!title) return;
-    setIsGenerating(true);
-    const generated = await generateAnnouncementContent(title, 'Responsable');
-    setContent(generated);
-    setIsGenerating(false);
-  };
-
-  const handleCorrection = async () => {
-    if (!content) return;
-    setIsCorrecting(true);
-    try {
-      const corrected = await correctFrenchText(content);
-      if (corrected !== content) {
-        setContent(corrected);
-        addNotification("Texte corrigé avec succès !", "SUCCESS");
-      } else {
-        addNotification("Aucune correction nécessaire détectée.", "INFO");
-      }
-    } catch (e) {
-      addNotification("Erreur lors de la correction.", "ERROR");
-    } finally {
-      setIsCorrecting(false);
-    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -538,10 +509,6 @@ export const Infos: React.FC = () => {
                  <div>
                     <div className="flex justify-between items-center mb-2">
                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Contenu</label>
-                       <div className="flex gap-3">
-                        <button type="button" onClick={handleCorrection} disabled={isCorrecting || !content} className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg hover:bg-emerald-100 flex items-center gap-1 disabled:opacity-50 transition">{isCorrecting ? <span className="animate-spin">⏳</span> : <Wand2 className="w-3 h-3" />} Corriger</button>
-                        <button type="button" onClick={handleGenerateAI} disabled={isGenerating || !title} className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg hover:bg-purple-100 flex items-center gap-1 disabled:opacity-50 transition">{isGenerating ? <span className="animate-spin">✨</span> : <Sparkles className="w-3 h-3" />} IA</button>
-                       </div>
                     </div>
                     <textarea required value={content} onChange={e => setContent(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-base min-h-[200px] focus:ring-4 focus:ring-[#87CEEB]/20 focus:border-[#0EA5E9] outline-none transition leading-relaxed text-slate-800 dark:text-white placeholder-slate-400 font-medium resize-none" placeholder="Détails de l'annonce..." />
                  </div>

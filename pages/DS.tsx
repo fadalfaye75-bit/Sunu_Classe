@@ -2,10 +2,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Exam } from '../types';
-import { CalendarDays, Clock, MapPin, Trash2, Plus, Download, Pencil, AlertCircle, X, Send, Wand2, Copy } from 'lucide-react';
+import { CalendarDays, Clock, MapPin, Trash2, Plus, Download, Pencil, AlertCircle, X, Send, Copy } from 'lucide-react';
 import { format, isSameWeek, addMinutes, isAfter } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { correctFrenchText } from '../services/gemini';
 
 export const DS: React.FC = () => {
   const { user, exams, addExam, updateExam, deleteExam, shareResource, addNotification } = useApp();
@@ -17,7 +16,6 @@ export const DS: React.FC = () => {
   const [duration, setDuration] = useState(60);
   const [room, setRoom] = useState('');
   const [notes, setNotes] = useState('');
-  const [isCorrecting, setIsCorrecting] = useState(false);
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
 
   // Création réservée aux Responsables ou Admins (pour éviter les trolls)
@@ -30,10 +28,6 @@ export const DS: React.FC = () => {
   // --- FILTRE AUTOMATIQUE : Masquer les examens passés ---
   const now = new Date();
   
-  // Option pour voir l'historique (implémentée précédemment, je m'assure qu'elle est là ou par défaut)
-  // Pour l'instant, je garde la logique de masquage par défaut.
-  // Note: Si vous voulez le bouton "Voir l'historique", il faudrait un état 'showHistory'.
-  // Pour cet update, je me concentre sur l'affichage du jour.
   const [showHistory, setShowHistory] = useState(false);
 
   const displayedExams = myExams.filter(exam => {
@@ -62,24 +56,6 @@ export const DS: React.FC = () => {
     setNotes(item.notes || '');
     setTargetRoles([]);
     setIsModalOpen(true);
-  };
-
-  const handleCorrection = async () => {
-    if (!notes) return;
-    setIsCorrecting(true);
-    try {
-      const corrected = await correctFrenchText(notes);
-      if (corrected !== notes) {
-        setNotes(corrected);
-        addNotification("Texte corrigé avec succès !", "SUCCESS");
-      } else {
-        addNotification("Aucune correction nécessaire.", "INFO");
-      }
-    } catch (e) {
-      addNotification("Erreur lors de la correction.", "ERROR");
-    } finally {
-      setIsCorrecting(false);
-    }
   };
 
   const handleCopy = (item: Exam) => {
@@ -313,9 +289,6 @@ export const DS: React.FC = () => {
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="block text-xs font-bold text-slate-500 uppercase">Notes</label>
-                    <button type="button" onClick={handleCorrection} disabled={isCorrecting || !notes} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 disabled:opacity-50">
-                        {isCorrecting ? <span className="animate-spin">⏳</span> : <Wand2 className="w-3 h-3" />} Corriger
-                    </button>
                   </div>
                   <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition font-medium text-slate-800 dark:text-white" rows={3} />
                 </div>
