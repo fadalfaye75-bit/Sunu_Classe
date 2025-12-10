@@ -1,9 +1,10 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Urgency, Announcement } from '../types';
-import { generateAnnouncementContent } from '../services/gemini';
-import { Megaphone, Trash2, Clock, Sparkles, Pencil, Plus, X, ArrowUpDown, Filter, Send, Mail, User, AlertCircle, Timer, Search, Archive } from 'lucide-react';
+import { generateAnnouncementContent, correctFrenchText } from '../services/gemini';
+import { Megaphone, Trash2, Clock, Sparkles, Pencil, Plus, X, ArrowUpDown, Filter, Send, Mail, User, AlertCircle, Timer, Search, Archive, Wand2, Eye } from 'lucide-react';
 import { format, isAfter, isBefore, startOfDay, endOfDay, addHours } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from '../components/UserAvatar';
@@ -18,7 +19,8 @@ export const Infos: React.FC = () => {
     deleteAnnouncement, 
     shareResource,
     highlightedItemId,
-    setHighlightedItemId
+    setHighlightedItemId,
+    addNotification
   } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -49,6 +51,7 @@ export const Infos: React.FC = () => {
   const [urgency, setUrgency] = useState<Urgency>(Urgency.NORMAL);
   const [durationHours, setDurationHours] = useState<number | ''>(''); // State for duration
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isCorrecting, setIsCorrecting] = useState(false);
   
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
 
@@ -103,6 +106,24 @@ export const Infos: React.FC = () => {
     const generated = await generateAnnouncementContent(title, 'Responsable');
     setContent(generated);
     setIsGenerating(false);
+  };
+
+  const handleCorrection = async () => {
+    if (!content) return;
+    setIsCorrecting(true);
+    try {
+      const corrected = await correctFrenchText(content);
+      if (corrected !== content) {
+        setContent(corrected);
+        addNotification("Texte corrigé avec succès !", "SUCCESS");
+      } else {
+        addNotification("Aucune correction nécessaire détectée.", "INFO");
+      }
+    } catch (e) {
+      addNotification("Erreur lors de la correction.", "ERROR");
+    } finally {
+      setIsCorrecting(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -401,12 +422,25 @@ export const Infos: React.FC = () => {
                 {isExpired && <span className="text-red-500 mr-2">[EXPIRÉ]</span>}
                 {item.title}
               </h3>
+              
               <div className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-medium text-sm md:text-base line-clamp-3">
                 {item.content}
+              </div>
+              <div className="mt-2 flex items-center gap-1 text-sky-600 font-bold text-sm opacity-80 group-hover:opacity-100 transition">
+                  <Eye className="w-4 h-4"/> Lire la suite
               </div>
 
               {/* Barre d'actions */}
               <div className="flex flex-wrap gap-2 w-full md:w-auto mt-4 md:mt-6 border-t border-slate-100 dark:border-slate-800 pt-3 md:pt-4 justify-end">
+                  {/* Bouton Voir */}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setViewingItem(item); }}
+                    className="flex-1 md:flex-none p-2 text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition active:scale-95 flex items-center justify-center gap-2"
+                    title="Voir les détails"
+                  >
+                    <Eye className="w-4 h-4" /> <span className="md:hidden text-xs font-bold">Voir</span>
+                  </button>
+
                   {/* Bouton Partager */}
                   <button 
                     onClick={(e) => { e.stopPropagation(); setShareConfirmation(item); }}
@@ -451,15 +485,29 @@ export const Infos: React.FC = () => {
               </button>
               
               <div className="p-6 md:p-8">
-                 <div className="flex items-center gap-4 mb-6">
+                 <div className="flex items-start gap-4 mb-6">
                     <UserAvatar user={users.find(u => u.id === viewingItem.authorId)} size="lg" />
-                    <div>
-                       <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white leading-tight">{viewingItem.title}</h3>
-                       <p className="text-slate-500 font-medium flex items-center gap-2 mt-1 text-sm md:text-base">
-                          {users.find(u => u.id === viewingItem.authorId)?.name} • <Clock className="w-4 h-4" /> {format(new Date(viewingItem.date), 'dd MMMM à HH:mm', { locale: fr })}
-                       </p>
+                    <div className="flex-1">
+                       <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white leading-tight mb-2">{viewingItem.title}</h3>
+                       
+                       <div className="flex flex-wrap items-center gap-3">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border ${
+                              viewingItem.urgency === 'URGENT' ? 'bg-red-50 text-red-600 border-red-200' : 
+                              viewingItem.urgency === 'INFO' ? 'bg-sky-50 text-sky-600 border-sky-200' : 
+                              'bg-orange-50 text-orange-600 border-orange-200'
+                          }`}>
+                            {viewingItem.urgency}
+                          </span>
+                          <span className="text-slate-500 font-medium text-sm flex items-center gap-1">
+                            {users.find(u => u.id === viewingItem.authorId)?.name}
+                          </span>
+                          <span className="text-slate-400 font-medium text-sm flex items-center gap-1">
+                            • <Clock className="w-3 h-3" /> {format(new Date(viewingItem.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                          </span>
+                       </div>
+
                        {viewingItem.durationHours && (
-                         <p className="text-xs text-orange-500 font-bold mt-1 flex items-center gap-1">
+                         <p className="text-xs text-orange-500 font-bold mt-2 flex items-center gap-1">
                             <Timer className="w-3 h-3"/> Expire après {viewingItem.durationHours}h
                          </p>
                        )}
@@ -520,9 +568,14 @@ export const Infos: React.FC = () => {
                  <div>
                     <div className="flex justify-between items-center mb-2">
                        <label className="block text-xs font-bold text-slate-500 uppercase">Contenu</label>
-                       <button type="button" onClick={handleGenerateAI} disabled={isGenerating || !title} className="text-xs font-bold text-purple-600 hover:text-purple-700 flex items-center gap-1 disabled:opacity-50">
-                          {isGenerating ? <span className="animate-spin">✨</span> : <Sparkles className="w-3 h-3" />} Générer avec IA
-                       </button>
+                       <div className="flex gap-2">
+                        <button type="button" onClick={handleCorrection} disabled={isCorrecting || !content} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 disabled:opacity-50">
+                            {isCorrecting ? <span className="animate-spin">⏳</span> : <Wand2 className="w-3 h-3" />} Corriger l'orthographe
+                        </button>
+                        <button type="button" onClick={handleGenerateAI} disabled={isGenerating || !title} className="text-xs font-bold text-purple-600 hover:text-purple-700 flex items-center gap-1 disabled:opacity-50">
+                            {isGenerating ? <span className="animate-spin">✨</span> : <Sparkles className="w-3 h-3" />} Générer avec IA
+                        </button>
+                       </div>
                     </div>
                     <textarea required value={content} onChange={e => setContent(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-base min-h-[150px] focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition leading-relaxed text-slate-800 dark:text-white" placeholder="Détails de l'annonce..." />
                  </div>

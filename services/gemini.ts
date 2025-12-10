@@ -49,6 +49,41 @@ export const generateAnnouncementContent = async (topic: string, role: string): 
   }
 };
 
+export const correctFrenchText = async (text: string): Promise<string> => {
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    throw new Error("Clé API manquante.");
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: apiKey });
+    const model = 'gemini-2.5-flash';
+    
+    const prompt = `
+      Agis comme un correcteur orthographique et grammatical expert.
+      Corrige le texte suivant en français.
+      Règles :
+      1. Corrige l'orthographe, la grammaire, la conjugaison et la ponctuation.
+      2. Ne change PAS le sens ni le ton du texte.
+      3. Retourne UNIQUEMENT le texte corrigé, sans introduction ni guillemets.
+      
+      Texte à corriger :
+      "${text}"
+    `;
+
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: prompt,
+    });
+
+    return response.text?.trim() || text;
+  } catch (error) {
+    console.error("Gemini Correction Error:", error);
+    return text; // Retourne le texte original en cas d'erreur
+  }
+};
+
 export const editImageWithGemini = async (imageBase64: string, prompt: string): Promise<string> => {
   const apiKey = getApiKey();
   

@@ -1,10 +1,12 @@
 
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Poll } from '../types';
-import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send, Lock, Unlock, Timer } from 'lucide-react';
+import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send, Lock, Unlock, Timer, Wand2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { addHours, isAfter } from 'date-fns';
+import { correctFrenchText } from '../services/gemini';
 
 export const Polls: React.FC = () => {
   const { user, polls, addPoll, updatePoll, votePoll, deletePoll, shareResource, addNotification } = useApp();
@@ -15,6 +17,7 @@ export const Polls: React.FC = () => {
   const [optionsStr, setOptionsStr] = useState(''); 
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [durationHours, setDurationHours] = useState<number | ''>('');
+  const [isCorrecting, setIsCorrecting] = useState(false);
 
   // Permission: Responsable OR Admin can create/manage
   const canManage = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
@@ -50,6 +53,24 @@ export const Polls: React.FC = () => {
     }
     updatePoll(poll.id, { active: !poll.active });
     addNotification(poll.active ? 'Sondage clôturé' : 'Sondage réouvert', 'INFO');
+  };
+
+  const handleCorrection = async () => {
+    if (!question) return;
+    setIsCorrecting(true);
+    try {
+      const corrected = await correctFrenchText(question);
+      if (corrected !== question) {
+        setQuestion(corrected);
+        addNotification("Question corrigée !", "SUCCESS");
+      } else {
+        addNotification("Aucune faute détectée.", "INFO");
+      }
+    } catch (e) {
+      addNotification("Erreur de correction.", "ERROR");
+    } finally {
+      setIsCorrecting(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -305,7 +326,12 @@ export const Polls: React.FC = () => {
             <div className="overflow-y-auto p-6 bg-white dark:bg-slate-900">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Question</label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-slate-500 uppercase">Question</label>
+                    <button type="button" onClick={handleCorrection} disabled={isCorrecting || !question} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 disabled:opacity-50">
+                        {isCorrecting ? <span className="animate-spin">⏳</span> : <Wand2 className="w-3 h-3" />} Corriger
+                    </button>
+                  </div>
                   <input required type="text" value={question} onChange={e => setQuestion(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-base focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition font-medium text-slate-800 dark:text-white" />
                 </div>
                 <div>
