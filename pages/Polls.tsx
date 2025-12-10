@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Poll } from '../types';
-import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send, Lock, Unlock, Timer, Wand2 } from 'lucide-react';
+import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send, Lock, Unlock, Timer, Wand2, Copy } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { addHours, isAfter } from 'date-fns';
 import { correctFrenchText } from '../services/gemini';
@@ -71,6 +71,16 @@ export const Polls: React.FC = () => {
     } finally {
       setIsCorrecting(false);
     }
+  };
+
+  const handleCopy = (poll: Poll) => {
+      const optionsText = poll.options.map((o, i) => `${i + 1}. ${o.label}`).join('\n');
+      const text = `SONDAGE : ${poll.question}\n\nOptions :\n${optionsText}\n\n(Vote sur la plateforme)`;
+      navigator.clipboard.writeText(text).then(() => {
+          addNotification("Sondage copié", "SUCCESS");
+      }).catch(() => {
+          addNotification("Erreur lors de la copie", "ERROR");
+      });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -203,6 +213,9 @@ export const Polls: React.FC = () => {
                       className={`flex-1 md:flex-none justify-center p-2.5 rounded-lg transition border active:scale-95 ${poll.active ? 'text-orange-600 bg-orange-50 border-orange-100 hover:bg-orange-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100'}`}
                     >
                       {poll.active ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => handleCopy(poll)} className="flex-1 md:flex-none justify-center text-slate-600 bg-slate-50 border border-slate-100 hover:bg-slate-100 p-2.5 rounded-lg transition active:scale-95">
+                      <Copy className="w-4 h-4" />
                     </button>
                     <button onClick={() => shareResource('POLL', poll)} className="flex-1 md:flex-none justify-center text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 p-2.5 rounded-lg transition active:scale-95">
                       <Send className="w-4 h-4" />

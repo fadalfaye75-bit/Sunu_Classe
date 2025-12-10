@@ -30,11 +30,20 @@ export const generateAnnouncementContent = async (topic: string, role: string): 
     const model = 'gemini-2.5-flash';
     
     const prompt = `
-      Tu es un assistant pour une application de gestion de classe scolaire.
-      L'utilisateur est un ${role} (Enseignant/Délégué).
-      Rédige une annonce concise, claire et professionnelle pour les élèves au sujet de : "${topic}".
-      Le texte doit être en français.
-      Garde le texte sous les 50 mots. N'inclus pas de salutations formelles ni de signature.
+      Tu es un expert en communication scolaire et pédagogique.
+      Ton rôle : Rédiger une annonce professionnelle, claire et engageante pour une application de classe (SunuClasse).
+      
+      Contexte :
+      - Auteur : ${role} (Enseignant, Responsable ou Délégué).
+      - Cible : Les étudiants de la classe.
+      - Sujet : "${topic}".
+
+      Instructions :
+      1. Adopte un ton professionnel mais bienveillant.
+      2. Sois direct et concis (environ 40-60 mots).
+      3. Structure le texte pour une lecture rapide sur mobile.
+      4. N'inclus PAS de titre (il est géré à part), seulement le corps du message.
+      5. Ne mets pas de signature générique type "Cordialement".
     `;
 
     const response = await ai.models.generateContent({
@@ -42,7 +51,7 @@ export const generateAnnouncementContent = async (topic: string, role: string): 
       contents: prompt,
     });
 
-    return response.text || "Impossible de générer le contenu.";
+    return response.text?.trim() || "Impossible de générer le contenu.";
   } catch (error) {
     console.error("Gemini API Error:", error);
     return "Erreur lors de la génération. Veuillez vérifier la connexion ou la clé API.";
@@ -61,14 +70,16 @@ export const correctFrenchText = async (text: string): Promise<string> => {
     const model = 'gemini-2.5-flash';
     
     const prompt = `
-      Agis comme un correcteur orthographique et grammatical expert.
-      Corrige le texte suivant en français.
-      Règles :
-      1. Corrige l'orthographe, la grammaire, la conjugaison et la ponctuation.
-      2. Ne change PAS le sens ni le ton du texte.
-      3. Retourne UNIQUEMENT le texte corrigé, sans introduction ni guillemets.
-      
-      Texte à corriger :
+      Tu es un éditeur senior expert en langue française.
+      Ta mission est de rendre le texte suivant impeccable.
+
+      Consignes strictes :
+      1. Corrige toutes les fautes d'orthographe, de grammaire, de syntaxe et de ponctuation.
+      2. Améliore légèrement la fluidité et le style pour que cela sonne naturel et professionnel, SANS changer le sens ni le ton de l'auteur.
+      3. Si le texte est déjà parfait, renvoie-le tel quel.
+      4. Renvoie UNIQUEMENT le texte corrigé, sans guillemets, sans introduction ("Voici le texte corrigé..."), ni explication.
+
+      Texte à traiter :
       "${text}"
     `;
 

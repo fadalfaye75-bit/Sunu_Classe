@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -28,7 +29,8 @@ import {
   User as UserIcon,
   ArrowLeft,
   Trash2,
-  Lock
+  Lock,
+  Check
 } from 'lucide-react';
 import { Role, Notification } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -56,6 +58,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     dismissNotification, 
     notificationHistory, 
     deleteNotification,
+    clearNotificationHistory,
     updateUser,
     markNotificationAsRead,
     markAllNotificationsAsRead,
@@ -385,7 +388,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                <div className="absolute top-20 right-8 w-80 bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden pointer-events-auto animate-in fade-in zoom-in-95 origin-top-right z-50">
                   <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-brand-pastel/20">
                      <h3 className="font-bold text-sm text-brand-900">Notifications</h3>
-                     <button onClick={markAllNotificationsAsRead} className="text-xs text-brand-700 font-bold hover:underline">Tout lire</button>
+                     <div className="flex gap-2">
+                        {notificationHistory.length > 0 && (
+                          <button 
+                             onClick={clearNotificationHistory} 
+                             className="text-xs text-red-500 font-bold hover:bg-red-100 px-2 py-1 rounded transition flex items-center gap-1"
+                             title="Tout effacer"
+                          >
+                             <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                        <button onClick={markAllNotificationsAsRead} className="text-xs text-brand-700 font-bold hover:underline bg-white/50 px-2 py-1 rounded">Tout lire</button>
+                     </div>
                   </div>
                   <div className="max-h-[300px] overflow-y-auto">
                      {notificationHistory.length === 0 ? (
@@ -404,7 +418,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                               </div>
                               <button 
                                 onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
-                                className="absolute right-2 top-2 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                                className="absolute right-2 top-2 p-1.5 rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition"
                                 title="Supprimer"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />

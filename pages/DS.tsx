@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Exam } from '../types';
-import { CalendarDays, Clock, MapPin, Trash2, Plus, Download, Pencil, AlertCircle, X, Send, Wand2 } from 'lucide-react';
+import { CalendarDays, Clock, MapPin, Trash2, Plus, Download, Pencil, AlertCircle, X, Send, Wand2, Copy } from 'lucide-react';
 import { format, isSameWeek, addMinutes, isAfter } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { correctFrenchText } from '../services/gemini';
@@ -74,6 +74,15 @@ export const DS: React.FC = () => {
     } finally {
       setIsCorrecting(false);
     }
+  };
+
+  const handleCopy = (item: Exam) => {
+      const text = `EXAMEN : ${item.subject.toUpperCase()}\nDate : ${format(new Date(item.date), 'dd/MM/yyyy à HH:mm')}\nSalle : ${item.room}\nDurée : ${item.durationMinutes} min\n${item.notes ? `Notes : ${item.notes}` : ''}`;
+      navigator.clipboard.writeText(text).then(() => {
+          addNotification("Détails de l'examen copiés", "SUCCESS");
+      }).catch(() => {
+          addNotification("Erreur lors de la copie", "ERROR");
+      });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -209,6 +218,13 @@ export const DS: React.FC = () => {
 
                 {/* Actions */}
                 <div className="grid grid-cols-1 md:flex md:justify-end gap-2 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
+                    <button 
+                      onClick={() => handleCopy(exam)}
+                      className="w-full md:w-auto flex items-center justify-center gap-2 px-3 py-2 text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition text-sm font-bold border border-slate-100"
+                    >
+                       <Copy className="w-4 h-4" /> <span className="md:hidden">Copier</span>
+                    </button>
+
                     <button 
                       onClick={() => shareResource('EXAM', exam)}
                       className="w-full md:w-auto flex items-center justify-center gap-2 px-3 py-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition text-sm font-bold border border-emerald-100"

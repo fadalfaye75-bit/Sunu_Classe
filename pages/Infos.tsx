@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Urgency, Announcement } from '../types';
 import { generateAnnouncementContent, correctFrenchText } from '../services/gemini';
-import { Megaphone, Trash2, Clock, Sparkles, Pencil, Plus, X, ArrowUpDown, Filter, Send, Mail, User, AlertCircle, Timer, Search, Archive, Wand2, Eye } from 'lucide-react';
+import { Megaphone, Trash2, Clock, Sparkles, Pencil, Plus, X, ArrowUpDown, Filter, Send, Mail, User, AlertCircle, Timer, Search, Archive, Wand2, Eye, Copy } from 'lucide-react';
 import { format, isAfter, isBefore, startOfDay, endOfDay, addHours } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from '../components/UserAvatar';
@@ -151,6 +151,15 @@ export const Infos: React.FC = () => {
       shareResource('ANNOUNCEMENT', shareConfirmation);
       setShareConfirmation(null);
     }
+  };
+
+  const handleCopy = (item: Announcement) => {
+    const textToCopy = `${item.title.toUpperCase()}\n\n${item.content}`;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      addNotification("Annonce copiée dans le presse-papier", "SUCCESS");
+    }).catch(() => {
+      addNotification("Erreur lors de la copie", "ERROR");
+    });
   };
 
   const sortedAnnouncements = [...myAnnouncements].sort((a, b) => {
@@ -441,6 +450,15 @@ export const Infos: React.FC = () => {
                     <Eye className="w-4 h-4" /> <span className="md:hidden text-xs font-bold">Voir</span>
                   </button>
 
+                  {/* Bouton Copier */}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleCopy(item); }}
+                    className="flex-1 md:flex-none p-2 text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition active:scale-95 flex items-center justify-center gap-2"
+                    title="Copier le contenu"
+                  >
+                    <Copy className="w-4 h-4" /> <span className="md:hidden text-xs font-bold">Copier</span>
+                  </button>
+
                   {/* Bouton Partager */}
                   <button 
                     onClick={(e) => { e.stopPropagation(); setShareConfirmation(item); }}
@@ -518,7 +536,10 @@ export const Infos: React.FC = () => {
                     {viewingItem.content}
                  </div>
 
-                 <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                 <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+                    <button onClick={() => handleCopy(viewingItem)} className="px-4 py-3 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition flex items-center gap-2">
+                        <Copy className="w-4 h-4"/> Copier
+                    </button>
                     <button onClick={() => setViewingItem(null)} className="px-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition w-full md:w-auto">Fermer</button>
                  </div>
               </div>

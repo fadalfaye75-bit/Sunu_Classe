@@ -1,13 +1,14 @@
 
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, MeetSession } from '../types';
-import { Video, Plus, Trash2, ExternalLink, AlertCircle, Pencil, User, Send, X } from 'lucide-react';
+import { Video, Plus, Trash2, ExternalLink, AlertCircle, Pencil, User, Send, X, Copy } from 'lucide-react';
 import { format, isBefore, addMinutes, isAfter } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export const Meet: React.FC = () => {
-  const { user, meets, addMeet, updateMeet, deleteMeet, shareResource } = useApp();
+  const { user, meets, addMeet, updateMeet, deleteMeet, shareResource, addNotification } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -43,6 +44,15 @@ export const Meet: React.FC = () => {
     setDate(new Date(item.date).toISOString().slice(0, 16));
     setTargetRoles([]);
     setIsModalOpen(true);
+  };
+
+  const handleCopy = (item: MeetSession) => {
+      const text = `VISIO : ${item.subject}\nAvec : ${item.teacherName}\nDate : ${format(new Date(item.date), 'dd/MM/yyyy à HH:mm')}\nLien : ${item.link}`;
+      navigator.clipboard.writeText(text).then(() => {
+          addNotification("Informations de connexion copiées", "SUCCESS");
+      }).catch(() => {
+          addNotification("Erreur lors de la copie", "ERROR");
+      });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -153,29 +163,38 @@ export const Meet: React.FC = () => {
                  >
                    <span>Rejoindre</span> <ExternalLink className="w-4 h-4" />
                  </a>
-                 {isAuthor && (
-                   <div className="flex gap-2 w-full">
-                      <button 
-                        onClick={() => shareResource('MEET', meet)}
-                        className="flex-1 p-2.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex justify-center items-center transition border border-emerald-100"
-                      >
-                        <Send className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => openEdit(meet)}
-                        className="flex-1 p-2.5 rounded-lg flex justify-center items-center transition"
-                        style={{ color: '#87CEEB', backgroundColor: 'rgba(135, 206, 235, 0.1)' }}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => deleteMeet(meet.id)}
-                        className="flex-1 p-2.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg flex justify-center items-center transition border border-red-100"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                   </div>
-                 )}
+                 <div className="flex gap-2 w-full">
+                     <button 
+                        onClick={() => handleCopy(meet)}
+                        className="flex-1 p-2.5 text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg flex justify-center items-center transition border border-slate-100"
+                        title="Copier le lien"
+                     >
+                        <Copy className="w-4 h-4" />
+                     </button>
+                     {isAuthor && (
+                       <>
+                          <button 
+                            onClick={() => shareResource('MEET', meet)}
+                            className="flex-1 p-2.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex justify-center items-center transition border border-emerald-100"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => openEdit(meet)}
+                            className="flex-1 p-2.5 rounded-lg flex justify-center items-center transition"
+                            style={{ color: '#87CEEB', backgroundColor: 'rgba(135, 206, 235, 0.1)' }}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => deleteMeet(meet.id)}
+                            className="flex-1 p-2.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg flex justify-center items-center transition border border-red-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                       </>
+                     )}
+                 </div>
                </div>
             </div>
            );
