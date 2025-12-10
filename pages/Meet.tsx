@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, MeetSession } from '../types';
@@ -47,7 +46,7 @@ export const Meet: React.FC = () => {
   };
 
   const handleCopy = (item: MeetSession) => {
-      const text = `VISIO : ${item.subject}\nAvec : ${item.teacherName}\nDate : ${format(new Date(item.date), 'dd/MM/yyyy à HH:mm')}\nLien : ${item.link}`;
+      const text = `VISIO : ${item.subject}\nAvec : ${item.teacherName}\nDate : ${format(new Date(item.date), 'EEEE dd/MM/yyyy à HH:mm', { locale: fr })}\nLien : ${item.link}`;
       navigator.clipboard.writeText(text).then(() => {
           addNotification("Informations de connexion copiées", "SUCCESS");
       }).catch(() => {
@@ -120,6 +119,7 @@ export const Meet: React.FC = () => {
                {/* Date & Time */}
                <div className="w-full md:w-auto flex justify-between md:block items-center border-b md:border-b-0 pb-4 md:pb-0 border-slate-100 dark:border-slate-800 mb-2 md:mb-0 md:min-w-[100px]">
                  <div className="flex flex-col items-center justify-center text-center">
+                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">{format(meetDate, 'EEEE', { locale: fr })}</span>
                     <span className="text-sm font-bold text-slate-500 uppercase tracking-wide">{format(meetDate, 'MMM', { locale: fr })}</span>
                     <span className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white">{format(meetDate, 'd')}</span>
                     <span className={`text-xs md:text-sm font-bold text-white px-3 py-1 rounded-full mt-2 ${isLive ? 'bg-red-500 animate-pulse' : 'bg-slate-800 dark:bg-slate-700'}`}>

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Urgency, Announcement } from '../types';
@@ -442,9 +441,9 @@ export const Infos: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-900 dark:text-white">{author?.name || 'Inconnu'}</p>
-                      <p className="text-xs font-medium text-slate-400 flex items-center gap-1 mt-0.5">
+                      <p className="text-xs font-medium text-slate-400 flex items-center gap-1 mt-0.5 capitalize">
                         <Clock className="w-3 h-3" />
-                        {format(new Date(item.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                        {format(new Date(item.date), 'EEEE dd MMM yyyy à HH:mm', { locale: fr })}
                       </p>
                     </div>
                  </div>
@@ -599,8 +598,8 @@ export const Infos: React.FC = () => {
                              par {users.find(u => u.id === viewingItem.authorId)?.name}
                           </span>
                           <span className="text-slate-300 font-light text-sm hidden md:inline">•</span>
-                          <span className="text-slate-400 font-medium text-sm flex items-center gap-1">
-                             <Clock className="w-3 h-3" /> {format(new Date(viewingItem.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                          <span className="text-slate-400 font-medium text-sm flex items-center gap-1 capitalize">
+                             <Clock className="w-3 h-3" /> {format(new Date(viewingItem.date), 'EEEE dd MMM yyyy à HH:mm', { locale: fr })}
                           </span>
                        </div>
 
@@ -712,18 +711,18 @@ export const Infos: React.FC = () => {
                                 min="1"
                                 value={durationHours} 
                                 onChange={e => setDurationHours(e.target.value === '' ? '' : Number(e.target.value))} 
-                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5 pl-12 text-base font-bold focus:ring-4 focus:ring-[#87CEEB]/20 focus:border-[#0EA5E9] outline-none transition text-slate-800 dark:text-white placeholder-slate-400" 
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 pl-12 text-base font-bold focus:ring-4 focus:ring-[#87CEEB]/20 focus:border-[#0EA5E9] outline-none transition text-slate-800 dark:text-white placeholder-slate-400" 
                                 placeholder="Illimité" 
                             />
                         </div>
                     </div>
                  </div>
 
-                 <div className="flex flex-col-reverse md:flex-row gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-3.5 rounded-2xl font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition active:scale-95">
+                 <div className="flex flex-col-reverse md:flex-row gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-full md:w-1/3 py-3.5 rounded-2xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition active:scale-95">
                       Annuler
                     </button>
-                    <button type="submit" className="w-full md:w-2/3 bg-[#0EA5E9] text-white py-3.5 rounded-2xl font-bold hover:bg-[#0284C7] shadow-lg shadow-[#87CEEB]/30 transition active:scale-95">
+                    <button type="submit" className="w-full md:w-2/3 bg-[#0EA5E9] text-white py-3.5 rounded-2xl font-bold hover:bg-[#0284C7] shadow-lg shadow-[#87CEEB]/30 transition active:scale-95 flex items-center justify-center gap-2">
                       {editingId ? 'Mettre à jour' : 'Publier l\'annonce'}
                     </button>
                  </div>

@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Exam } from '../types';
@@ -30,8 +29,15 @@ export const DS: React.FC = () => {
 
   // --- FILTRE AUTOMATIQUE : Masquer les examens passés ---
   const now = new Date();
-  const upcomingExams = myExams.filter(exam => {
-    // On garde l'examen si sa date de fin (début + durée) est dans le futur
+  
+  // Option pour voir l'historique (implémentée précédemment, je m'assure qu'elle est là ou par défaut)
+  // Pour l'instant, je garde la logique de masquage par défaut.
+  // Note: Si vous voulez le bouton "Voir l'historique", il faudrait un état 'showHistory'.
+  // Pour cet update, je me concentre sur l'affichage du jour.
+  const [showHistory, setShowHistory] = useState(false);
+
+  const displayedExams = myExams.filter(exam => {
+    if (showHistory) return true;
     const examEnd = addMinutes(new Date(exam.date), exam.durationMinutes);
     return isAfter(examEnd, now);
   }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -77,7 +83,7 @@ export const DS: React.FC = () => {
   };
 
   const handleCopy = (item: Exam) => {
-      const text = `EXAMEN : ${item.subject.toUpperCase()}\nDate : ${format(new Date(item.date), 'dd/MM/yyyy à HH:mm')}\nSalle : ${item.room}\nDurée : ${item.durationMinutes} min\n${item.notes ? `Notes : ${item.notes}` : ''}`;
+      const text = `EXAMEN : ${item.subject.toUpperCase()}\nDate : ${format(new Date(item.date), 'EEEE dd/MM/yyyy à HH:mm', { locale: fr })}\nSalle : ${item.room}\nDurée : ${item.durationMinutes} min\n${item.notes ? `Notes : ${item.notes}` : ''}`;
       navigator.clipboard.writeText(text).then(() => {
           addNotification("Détails de l'examen copiés", "SUCCESS");
       }).catch(() => {
@@ -103,10 +109,16 @@ export const DS: React.FC = () => {
   };
 
   const handleExportCSV = () => {
-    if (upcomingExams.length === 0) return;
-    const headers = ['Matière', 'Date', 'Heure', 'Durée (min)', 'Salle', 'Notes'];
-    const rows = upcomingExams.map(e => [
-      e.subject, format(new Date(e.date), 'yyyy-MM-dd'), format(new Date(e.date), 'HH:mm'), e.durationMinutes, e.room, e.notes || ''
+    if (displayedExams.length === 0) return;
+    const headers = ['Matière', 'Jour', 'Date', 'Heure', 'Durée (min)', 'Salle', 'Notes'];
+    const rows = displayedExams.map(e => [
+      e.subject, 
+      format(new Date(e.date), 'EEEE', { locale: fr }), // Ajout de la colonne Jour
+      format(new Date(e.date), 'dd/MM/yyyy'), 
+      format(new Date(e.date), 'HH:mm'), 
+      e.durationMinutes, 
+      e.room, 
+      e.notes || ''
     ]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -130,7 +142,14 @@ export const DS: React.FC = () => {
         </div>
         
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          {upcomingExams.length > 0 && (
+          <button 
+             onClick={() => setShowHistory(!showHistory)}
+             className={`w-full md:w-auto flex-1 md:flex-none justify-center border px-4 py-3 rounded-xl font-bold transition flex items-center gap-2 shadow-sm active:scale-95 ${showHistory ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800'}`}
+          >
+             {showHistory ? 'Masquer historique' : 'Voir historique'}
+          </button>
+
+          {displayedExams.length > 0 && (
              <button
                onClick={handleExportCSV}
                className="w-full md:w-auto flex-1 md:flex-none justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 px-4 py-3 md:px-6 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-2 shadow-sm active:scale-95"
@@ -152,13 +171,13 @@ export const DS: React.FC = () => {
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
-          {upcomingExams.length === 0 && (
+          {displayedExams.length === 0 && (
              <div className="p-16 text-center text-slate-400 flex flex-col items-center">
                <CalendarDays className="w-16 h-16 opacity-20 text-slate-800 dark:text-white mb-4" />
                <p className="font-medium text-lg">Aucun examen à venir.</p>
              </div>
           )}
-          {upcomingExams.map((exam) => {
+          {displayedExams.map((exam) => {
             const examDate = new Date(exam.date);
             const isThisWeek = isSameWeek(examDate, new Date());
             
@@ -173,13 +192,15 @@ export const DS: React.FC = () => {
                     flex flex-col items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-2xl border shrink-0
                     ${isThisWeek ? 'bg-sky-500 border-sky-600 text-white shadow-lg shadow-sky-500/30' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}
                   `}>
-                     <span className={`text-xs md:text-sm font-bold uppercase ${isThisWeek ? 'text-sky-100' : 'text-slate-400'}`}>{format(examDate, 'MMM', { locale: fr })}</span>
-                     <span className="text-3xl md:text-4xl font-black">{format(examDate, 'd')}</span>
+                     {/* Affichage du jour en entier (EEEE) au lieu de l'abréviation (EEE) */}
+                     <span className={`text-[10px] md:text-xs font-bold uppercase leading-none mb-1 ${isThisWeek ? 'text-sky-100' : 'text-slate-400'}`}>{format(examDate, 'EEEE', { locale: fr })}</span>
+                     <span className={`text-xs md:text-sm font-bold uppercase leading-none ${isThisWeek ? 'text-sky-100' : 'text-slate-400'}`}>{format(examDate, 'MMM', { locale: fr })}</span>
+                     <span className="text-2xl md:text-4xl font-black leading-none mt-1">{format(examDate, 'd')}</span>
                   </div>
                   <div className="md:hidden">
                     <h3 className="text-lg font-bold text-slate-800 dark:text-white line-clamp-1">{exam.subject}</h3>
                     <div className="flex items-center gap-3 text-sm text-slate-500 mt-1 font-medium">
-                       <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {format(examDate, 'HH:mm')}</span>
+                       <span className="flex items-center gap-1 capitalize"><Clock className="w-4 h-4" /> {format(examDate, 'EEEE HH:mm', { locale: fr })}</span>
                        <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {exam.room}</span>
                     </div>
                   </div>
@@ -193,9 +214,10 @@ export const DS: React.FC = () => {
                    </div>
                    
                    <div className="flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400 font-medium">
-                      <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 capitalize">
                         <Clock className="w-4 h-4 text-sky-500" />
-                        {format(examDate, 'HH:mm')} • {exam.durationMinutes} min
+                        {/* Format complet ici aussi */}
+                        {format(examDate, 'EEEE HH:mm', { locale: fr })} • {exam.durationMinutes} min
                       </div>
                       <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
                         <MapPin className="w-4 h-4 text-sky-500" />

@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { ArrowRight, Mail, Lock, Loader2, ShieldCheck, GraduationCap, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Mail, Lock, Loader2, ShieldCheck, GraduationCap, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 
 const LOGO_UCAD = "https://upload.wikimedia.org/wikipedia/fr/4/43/Logo_UCAD.png";
 
@@ -9,19 +10,34 @@ export const Login: React.FC = () => {
   const { login, addNotification } = useApp();
   const [email, setEmail] = useState(''); 
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [logoutReason, setLogoutReason] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check if user was logged out due to inactivity
+    const reason = sessionStorage.getItem('logout_reason');
+    if (reason === 'inactivity') {
+        setLogoutReason("Vous avez été déconnecté par sécurité après 15 minutes d'inactivité.");
+        sessionStorage.removeItem('logout_reason');
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLogoutReason(null);
     setIsLoading(true);
     try {
-      const success = await login(email);
-      if (!success) setError("Identifiants incorrects.");
+      // On passe maintenant password et rememberMe
+      const success = await login(email, password, rememberMe);
+      if (!success) {
+          setError("Identifiants incorrects ou mot de passe invalide.");
+      }
     } catch {
-      setError("Erreur technique.");
+      setError("Erreur technique lors de la connexion.");
     } finally {
       setIsLoading(false);
     }
@@ -67,6 +83,13 @@ export const Login: React.FC = () => {
            <div className="max-w-sm mx-auto w-full">
               <h2 className="text-3xl font-bold text-slate-800 mb-2">Bienvenue</h2>
               <p className="text-slate-500 mb-10">Entrez vos accès pour continuer.</p>
+              
+              {logoutReason && (
+                  <div className="mb-6 bg-orange-50 text-orange-600 p-4 rounded-xl text-sm font-bold flex items-start gap-2 border border-orange-100 animate-in fade-in slide-in-from-top-2">
+                      <AlertTriangle className="w-5 h-5 shrink-0" />
+                      {logoutReason}
+                  </div>
+              )}
 
               <form onSubmit={handleLogin} className="space-y-6">
                  <div className="space-y-2">
@@ -94,6 +117,7 @@ export const Login: React.FC = () => {
                          onChange={e => setPassword(e.target.value)}
                          className="w-full bg-surface-50 border border-slate-100 focus:bg-white focus:border-brand-pastel focus:ring-4 focus:ring-brand-pastel/20 rounded-2xl py-4 pl-12 pr-12 font-medium outline-none transition-all text-slate-800 placeholder:text-slate-400"
                          placeholder="••••••••"
+                         required
                        />
                        <button 
                          type="button"
@@ -106,7 +130,15 @@ export const Login: React.FC = () => {
                     </div>
                  </div>
 
-                 <div className="flex justify-end">
+                 <div className="flex justify-between items-center">
+                    <label className="flex items-center gap-2 cursor-pointer group select-none">
+                       <div className={`w-5 h-5 rounded border flex items-center justify-center transition ${rememberMe ? 'bg-brand-pastel border-brand-pastel' : 'bg-white border-slate-300 group-hover:border-brand-pastel'}`}>
+                          {rememberMe && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                       </div>
+                       <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="hidden" />
+                       <span className="text-sm font-bold text-slate-500 group-hover:text-slate-700">Rester connecté</span>
+                    </label>
+
                     <button 
                       type="button" 
                       onClick={handleForgotPassword}

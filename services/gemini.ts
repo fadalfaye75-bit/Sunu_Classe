@@ -15,16 +15,16 @@ export const isGeminiConfigured = (): boolean => {
   return !!getApiKey();
 };
 
-export const generateAnnouncementContent = async (topic: string, role: string): Promise<string> => {
+const getClient = () => {
   const apiKey = getApiKey();
-  
-  if (!apiKey) {
-    console.warn("Gemini API Key is missing.");
-    return "Génération IA indisponible : Clé API manquante ou mal configurée.";
-  }
+  if (!apiKey) throw new Error("Clé API manquante.");
+  return new GoogleGenAI({ apiKey });
+};
 
+// --- ANNONCES ---
+export const generateAnnouncementContent = async (topic: string, role: string): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: apiKey });
+    const ai = getClient();
     const model = 'gemini-2.5-flash';
     
     const prompt = `
@@ -36,24 +36,12 @@ export const generateAnnouncementContent = async (topic: string, role: string): 
       - Sujet brut : "${topic}"
       - Cible : Étudiants et corps professoral.
 
-      RÈGLES DE RÉDACTION "HYPER-PERFORMANCE" :
-      1. **Structure Visuelle** : Le texte doit être aéré. Utilise des listes à puces si nécessaire.
-      2. **Mise en valeur** : Utilise le format Markdown (**gras**) pour mettre en évidence les dates, les heures, les lieux et les actions requises.
-      3. **Style** : Professionnel, fluide, moderne et bienveillant. Évite le langage administratif robotique.
-      4. **Emojis** : Utilise des émojis pertinents (📍, 📅, ⚠️, 🎓, ✨) avec parcimonie pour guider l'œil (début de paragraphe ou mise en avant).
-      5. **Call to Action** : Termine par une phrase claire indiquant ce que l'élève doit faire (si applicable).
-      6. **Format** : Ne mets PAS de titre (il est géré par l'interface). Rédige uniquement le corps du message.
-
-      Exemple de structure attendue :
-      "Bonjour à tous 👋,
-      
-      Concernant [Sujet], voici les points importants :
-      • Point 1
-      • Point 2
-      
-      📅 **Date clé** : [Date]
-      
-      Merci de votre attention."
+      RÈGLES DE RÉDACTION :
+      1. Structure Visuelle : Aéré, listes à puces si nécessaire.
+      2. Mise en valeur : Utilise le Markdown (**gras**) pour les dates et lieux.
+      3. Style : Professionnel, fluide, moderne.
+      4. Emojis : Utilise des émojis pertinents (📍, 📅, ⚠️, 🎓) avec parcimonie.
+      5. Sortie : Rédige uniquement le corps du message.
     `;
 
     const response = await ai.models.generateContent({
@@ -63,40 +51,60 @@ export const generateAnnouncementContent = async (topic: string, role: string): 
 
     return response.text?.trim() || "Impossible de générer le contenu.";
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    return "Erreur lors de la génération. Veuillez vérifier la connexion ou la clé API.";
+    console.error("Gemini Error:", error);
+    return "Erreur lors de la génération. Veuillez vérifier la connexion.";
   }
 };
 
-export const correctFrenchText = async (text: string): Promise<string> => {
-  const apiKey = getApiKey();
-  
-  if (!apiKey) {
-    throw new Error("Clé API manquante.");
-  }
+// --- CORRECTEUR PRO (Modes multiples) ---
+export type CorrectionStyle = 'FIX' | 'PROFESSIONAL' | 'SIMPLE' | 'ACADEMIC' | 'CONCISE' | 'CASUAL' | 'PERSUASIVE';
 
+export const correctTextAdvanced = async (text: string, style: CorrectionStyle = 'FIX'): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: apiKey });
+    const ai = getClient();
     const model = 'gemini-2.5-flash';
     
+    let instruction = "";
+    
+    switch (style) {
+      case 'FIX':
+        instruction = "Corrige strictement l'orthographe, la grammaire, la conjugaison et la ponctuation. Ne change pas le style, garde le sens exact.";
+        break;
+      case 'PROFESSIONAL':
+        instruction = "Transforme ce texte pour qu'il soit très professionnel, formel et adapté au monde de l'entreprise ou de l'administration. Vocabulaire précis, vouvoiement si applicable.";
+        break;
+      case 'ACADEMIC':
+        instruction = "Adopte un ton académique, universitaire. Utilise des tournures de phrases complexes et un vocabulaire soutenu. Parfait pour des rapports ou des devoirs.";
+        break;
+      case 'SIMPLE':
+        instruction = "Simplifie le texte au maximum. Utilise des phrases courtes, des mots simples. Idéal pour une compréhension rapide par tous (vulgarisation).";
+        break;
+      case 'CONCISE':
+        instruction = "Rends le texte concis. Supprime le superflu, va droit au but sans perdre d'information clé. Résume si nécessaire.";
+        break;
+      case 'CASUAL':
+        instruction = "Reformule ce texte sur un ton décontracté, amical et chaleureux. Utilise un langage courant, le tutoiement si approprié, et rends le message accessible et sympathique.";
+        break;
+      case 'PERSUASIVE':
+        instruction = "Réécris ce texte pour le rendre persuasif, engageant et vendeur. Utilise des mots forts, mets en avant les bénéfices et incite à l'action ou à l'adhésion.";
+        break;
+    }
+
     const prompt = `
-      Tu es un Éditeur Senior expert en langue française et en communication institutionnelle.
-      Ta mission est de transformer le texte brut ci-dessous en une version "Premium".
+      Tu es 'Correcteur Pro Class Connect', un expert linguistique.
+      
+      MISSION :
+      ${instruction}
 
-      INSTRUCTIONS STRICTES :
-      1. **Correction Absolue** : Élimine toute faute d'orthographe, de grammaire et de syntaxe.
-      2. **Amélioration du Style** :
-         - Reformule les phrases lourdes ou maladroites.
-         - Utilise un vocabulaire précis et professionnel.
-         - Supprime les répétitions inutiles.
-      3. **Structure** :
-         - Si le texte est un bloc compact, ajoute des sauts de ligne logiques.
-         - Ajoute des majuscules et la ponctuation manquante.
-      4. **Respect du Sens** : Le message doit rester fidèle à l'intention de l'auteur, ne change pas les faits (dates, noms).
-      5. **Sortie** : Renvoie UNIQUEMENT le texte amélioré, sans guillemets, sans intro ni conclusion de ta part.
+      RÈGLES DE SÉCURITÉ :
+      - Si le texte contient des insultes graves ou des propos illégaux, refuse poliment de traiter en répondant : "[Contenu inapproprié détecté]".
+      - Ne jamais inventer de faits.
 
-      TEXTE À SUBLIMER :
+      TEXTE À TRAITER :
       "${text}"
+
+      SORTIE ATTENDUE :
+      Uniquement le texte traité. Rien d'autre.
     `;
 
     const response = await ai.models.generateContent({
@@ -106,59 +114,95 @@ export const correctFrenchText = async (text: string): Promise<string> => {
 
     return response.text?.trim() || text;
   } catch (error) {
-    console.error("Gemini Correction Error:", error);
-    return text; // Retourne le texte original en cas d'erreur
+    console.error("Correction Error:", error);
+    throw error;
+  }
+};
+
+// Garder l'ancienne fonction pour compatibilité, pointant vers le mode FIX
+export const correctFrenchText = async (text: string): Promise<string> => {
+  return correctTextAdvanced(text, 'FIX');
+};
+
+// --- CHATBOT ASSISTANT ---
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
+
+export const chatWithAssistant = async (history: ChatMessage[], newMessage: string): Promise<string> => {
+  try {
+    const ai = getClient();
+    const model = 'gemini-2.5-flash';
+
+    const systemPrompt = `
+      Tu es 'Super Assistant Class Connect', une IA éducative bienveillante et experte.
+      
+      TES OBJECTIFS :
+      1. Aider les étudiants à comprendre leurs cours (Maths, Français, Histoire, Code, etc.).
+      2. Expliquer des concepts complexes simplement.
+      3. Générer des quiz ou des résumés à la demande.
+      4. Rester poli, motivant et professionnel (ton "Mentor").
+
+      RÈGLES D'OR :
+      - Ne jamais inventer d'informations fausses (hallucinations). Si tu ne sais pas, dis-le.
+      - Réponses structurées : Utilise des titres, du gras (**mot**), et des listes.
+      - Si l'utilisateur a fait une faute d'orthographe dans sa question, ignore-la et réponds correctement.
+      - Refuse de traiter les demandes illégales, haineuses ou de triche manifeste (ex: "fais mon devoir entier").
+    `;
+    
+    const conversationText = `
+      ${systemPrompt}
+      
+      HISTORIQUE DE LA CONVERSATION :
+      ${history.map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n')}
+      
+      NOUVELLE DEMANDE :
+      User: ${newMessage}
+      Assistant:
+    `;
+
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: conversationText,
+    });
+
+    return response.text?.trim() || "Désolé, je n'ai pas pu traiter votre demande.";
+  } catch (error) {
+    console.error("Chat Error:", error);
+    return "Je rencontre des difficultés techniques pour le moment. Veuillez réessayer.";
   }
 };
 
 export const editImageWithGemini = async (imageBase64: string, prompt: string): Promise<string> => {
   const apiKey = getApiKey();
-  
-  if (!apiKey) {
-    throw new Error("Clé API manquante ou mal configurée.");
-  }
+  if (!apiKey) throw new Error("Clé API manquante.");
 
-  // Extract base64 data and mime type
   const match = imageBase64.match(/^data:(.+);base64,(.+)$/);
-  if (!match) {
-    throw new Error("Format d'image invalide.");
-  }
-  const mimeType = match[1];
-  const data = match[2];
-
+  if (!match) throw new Error("Format invalide.");
+  
   try {
-    const ai = new GoogleGenAI({ apiKey: apiKey });
-    // Use gemini-2.5-flash-image for image editing tasks
-    const model = 'gemini-2.5-flash-image';
-    
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: model,
+      model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: data,
-            },
-          },
-          {
-            text: prompt,
-          },
+          { inlineData: { mimeType: match[1], data: match[2] } },
+          { text: prompt },
         ],
       },
     });
 
-    if (response.candidates && response.candidates[0]?.content?.parts) {
+    if (response.candidates?.[0]?.content?.parts) {
       for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData && part.inlineData.data) {
+        if (part.inlineData?.data) {
            return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
         }
       }
     }
-    
-    throw new Error("L'IA n'a pas retourné d'image.");
+    throw new Error("Pas d'image retournée.");
   } catch (error: any) {
-    console.error("Gemini Image Edit Error:", error);
-    throw new Error(error.message || "Erreur lors de la génération de l'image.");
+    console.error("Image Edit Error:", error);
+    throw new Error(error.message || "Erreur image.");
   }
 };

@@ -1,87 +1,17 @@
 
 
-import React, { createContext, useContext, useState, PropsWithChildren, useMemo, useEffect } from 'react';
-import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption, SentEmail, EmailConfig } from '../types';
+import React, { createContext, useContext, useState, PropsWithChildren, useMemo, useEffect, useCallback } from 'react';
+import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption, SentEmail, EmailConfig, AppContextType } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { INITIAL_CLASSES, INITIAL_USERS, INITIAL_ANNOUNCEMENTS, INITIAL_MEETS, INITIAL_EXAMS, INITIAL_POLLS } from '../constants';
 import { sendEmail } from '../services/emailService';
 
-interface AppContextType {
-  user: User | null;
-  users: User[]; 
-  classes: ClassGroup[];
-  schoolName: string;
-  setSchoolName: (name: string) => void;
-  
-  // Data
-  announcements: Announcement[];
-  meets: MeetSession[];
-  exams: Exam[];
-  polls: Poll[];
-  sentEmails: SentEmail[];
-  
-  // Security & UX
-  auditLogs: AuditLog[];
-  notifications: Notification[];
-  notificationHistory: Notification[];
-  addNotification: (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING', targetPage?: string, resourceId?: string) => void;
-  dismissNotification: (id: string) => void;
-  markNotificationAsRead: (id: string) => void;
-  markAllNotificationsAsRead: () => void;
-  deleteNotification: (id: string) => void;
-  clearNotificationHistory: () => void;
-  
-  // Deep Linking State
-  highlightedItemId: string | null;
-  setHighlightedItemId: (id: string | null) => void;
-
-  // Theme
-  theme: 'light' | 'dark';
-  toggleTheme: () => void;
-
-  // Actions
-  login: (email: string) => Promise<boolean>; 
-  logout: () => void;
-  getCurrentClass: () => ClassGroup | undefined;
-  
-  // Content Management (CRUD)
-  addAnnouncement: (item: Omit<Announcement, 'id' | 'authorId' | 'classId'>, targetRoles?: Role[]) => Promise<void>;
-  updateAnnouncement: (id: string, item: Partial<Announcement>) => Promise<void>;
-  deleteAnnouncement: (id: string) => Promise<void>;
-  
-  addMeet: (item: Omit<MeetSession, 'id' | 'classId' | 'authorId'>, targetRoles?: Role[]) => Promise<void>;
-  updateMeet: (id: string, item: Partial<MeetSession>) => Promise<void>;
-  deleteMeet: (id: string) => Promise<void>;
-  
-  addExam: (item: Omit<Exam, 'id' | 'authorId' | 'classId'>, targetRoles?: Role[]) => Promise<void>;
-  updateExam: (id: string, item: Partial<Exam>) => Promise<void>;
-  deleteExam: (id: string) => Promise<void>;
-  
-  addPoll: (item: Omit<Poll, 'id' | 'createdAt' | 'classId' | 'authorId'>) => Promise<void>;
-  updatePoll: (id: string, item: Partial<Poll>) => Promise<void>;
-  votePoll: (pollId: string, optionId: string) => Promise<void>;
-  deletePoll: (id: string) => Promise<void>;
-
-  // Sharing & Config
-  emailConfig: EmailConfig;
-  updateEmailConfig: (config: EmailConfig) => void;
-  shareResource: (type: 'ANNOUNCEMENT' | 'MEET' | 'EXAM' | 'POLL', item: any) => Promise<void>;
-  resendEmail: (email: SentEmail) => void;
-
-  // Admin / Class Management
-  addClass: (name: string, description: string, email: string) => Promise<void>;
-  updateClass: (id: string, item: Partial<ClassGroup>) => Promise<void>;
-  deleteClass: (id: string) => Promise<void>;
-  
-  addUser: (user: Omit<User, 'id'>) => Promise<void>;
-  importUsers: (usersData: Omit<User, 'id'>[]) => Promise<void>;
-  updateUser: (id: string, item: Partial<User>) => Promise<void>;
-  deleteUser: (id: string) => Promise<void>;
-}
-
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+// Temps d'inactivité avant déconnexion automatique (15 minutes)
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000; 
 
 export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   // State Initialization with Constants Fallback
@@ -113,11 +43,17 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   // Deep Linking
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
 
+  // Auto-Logout State
+  const [lastActivity, setLastActivity] = useState(Date.now());
+
   // --- Helpers ---
   const getCurrentClass = () => classes.find(c => c.id === user?.classId);
 
-  // Initialize Theme
+  // --- PERSISTENCE & THEME & ACTIVITY MONITORING ---
+  
+  // 1. Initialize Theme & Session from Storage
   useEffect(() => {
+    // Theme
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
@@ -129,7 +65,60 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
       setTheme('dark');
       document.documentElement.classList.add('dark');
     }
+
+    // Session Persistence
+    const storedUser = localStorage.getItem('sunuclasse_user') || sessionStorage.getItem('sunuclasse_user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (e) {
+        console.error("Session invalide");
+      }
+    }
   }, []);
+
+  // 2. Activity Listener for Auto-Logout
+  const resetActivity = useCallback(() => {
+    setLastActivity(Date.now());
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Listeners
+    window.addEventListener('mousemove', resetActivity);
+    window.addEventListener('keydown', resetActivity);
+    window.addEventListener('click', resetActivity);
+    window.addEventListener('scroll', resetActivity);
+    window.addEventListener('touchstart', resetActivity);
+
+    // Timer Check
+    const interval = setInterval(() => {
+      if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
+        logout();
+        // Notification après logout pour expliquer
+        // Note: state user sera null, mais notification sera ajoutée au prochain render ou via mécanisme global si nécessaire
+        // Ici on use un petit hack: setTimeout pour addNotif après le flush state logout
+        setTimeout(() => {
+             // On utilise directement l'alerte native ou une notif persistante si possible, 
+             // mais ici addNotification fonctionne dans le contexte.
+             // Cependant, logout() clear le user, l'app redirige vers login.
+             // Idéalement, on stocke "reason=timeout" dans sessionStorage et Login.tsx l'affiche.
+             sessionStorage.setItem('logout_reason', 'inactivity');
+        }, 100);
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      window.removeEventListener('mousemove', resetActivity);
+      window.removeEventListener('keydown', resetActivity);
+      window.removeEventListener('click', resetActivity);
+      window.removeEventListener('scroll', resetActivity);
+      window.removeEventListener('touchstart', resetActivity);
+      clearInterval(interval);
+    };
+  }, [user, lastActivity, resetActivity]);
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -237,8 +226,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
         // Load Email Config if exists (Simulated here, ideally stored securely)
         const emailProvider = settingsData.find(s => s.key === 'email_provider')?.value;
         const emailSender = settingsData.find(s => s.key === 'email_sender')?.value;
-        // WARNING: API Keys should technically be in env vars or secure storage, not plain DB text
-        // For this demo, we assume they might be there or managed via local state in session
         if (emailProvider) {
             setEmailConfig(prev => ({ ...prev, provider: emailProvider as any, senderEmail: emailSender }));
         }
@@ -255,35 +242,61 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   }, [user]); // Refresh when user logs in
 
   // --- Auth ---
-  const login = async (email: string) => {
+  const login = async (email: string, password?: string, rememberMe?: boolean) => {
     try {
+      // 1. Fetch User
       const { data: dbUser, error } = await supabase
         .from('users')
         .select('*')
         .eq('email', email)
         .single();
 
+      let matchedUser = dbUser;
+
       if (error || !dbUser) {
         // Fallback to constants for demo if DB is empty/fails
         const localUser = users.find(u => u.email === email);
-        if (localUser) {
-           setUser(localUser);
-           logAction('LOGIN', 'Connexion locale');
-           return true;
-        }
+        if (localUser) matchedUser = localUser;
+      }
+
+      if (!matchedUser) {
         return false;
       }
 
+      // 2. Password Check Logic
+      // Note: In a real app, use Supabase Auth or hashed passwords.
+      // Here we implement the requirement: Admin='passer25', others > 4 chars.
+      if (password) {
+          if (matchedUser.role === Role.ADMIN) {
+              if (password !== 'passer25') return false;
+          } else {
+              if (password.length < 4) return false;
+          }
+      } else {
+          // If no password provided but required by UI (should not happen if UI is correct)
+          return false;
+      }
+
       const appUser: User = {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        role: dbUser.role as Role,
-        classId: dbUser.class_id,
-        avatar: dbUser.avatar
+        id: matchedUser.id,
+        name: matchedUser.name,
+        email: matchedUser.email,
+        role: matchedUser.role as Role,
+        classId: matchedUser.class_id || matchedUser.classId,
+        avatar: matchedUser.avatar
       };
 
+      // 3. Set Session
       setUser(appUser);
+      setLastActivity(Date.now());
+      
+      // Persistence
+      if (rememberMe) {
+        localStorage.setItem('sunuclasse_user', JSON.stringify(appUser));
+      } else {
+        sessionStorage.setItem('sunuclasse_user', JSON.stringify(appUser));
+      }
+
       logAction('LOGIN', 'Connexion réussie');
       return true;
     } catch (e) {
@@ -293,8 +306,10 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const logout = () => {
-    logAction('LOGOUT', 'Déconnexion');
+    if (user) logAction('LOGOUT', 'Déconnexion');
     setUser(null);
+    localStorage.removeItem('sunuclasse_user');
+    sessionStorage.removeItem('sunuclasse_user');
   };
 
   const setSchoolName = async (name: string) => {
