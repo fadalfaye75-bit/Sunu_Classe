@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, MeetSession } from '../types';
@@ -16,7 +17,13 @@ export const Meet: React.FC = () => {
   const [date, setDate] = useState('');
 
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
-  const canManage = user?.role === Role.RESPONSIBLE;
+  
+  // Permission: Responsable OR Admin can create/manage
+  const canManage = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
+  const isAdmin = user?.role === Role.ADMIN;
+
+  // --- FILTER BY CLASS ---
+  const myMeets = isAdmin ? meets : meets.filter(m => m.classId === user?.classId);
 
   const openCreate = () => {
     setEditingId(null);
@@ -55,17 +62,24 @@ export const Meet: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  const sortedMeets = [...meets].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // --- FILTRE AUTOMATIQUE : Masquer les meets passés de plus d'une heure ---
+  const sortedMeets = [...myMeets]
+    .filter(meet => {
+        // On considère qu'un meet est fini 1h après son début
+        const meetEnd = addMinutes(new Date(meet.date), 60);
+        return isAfter(meetEnd, new Date());
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
-    <div className="max-w-4xl mx-auto px-4 md:px-0 pb-20 md:pb-12">
+    <div className="max-w-4xl mx-auto px-0 md:px-0">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-10 gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white flex items-center gap-3 tracking-tight">
             <span className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 p-2 rounded-xl text-emerald-600"><Video className="w-8 h-8" /></span>
             Visioconférences
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-lg">Accès direct aux cours en ligne.</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-lg">Accès direct aux cours en ligne à venir.</p>
         </div>
         {canManage && (
           <button onClick={openCreate} className="w-full md:w-auto btn-primary text-white px-6 py-3 rounded-xl font-bold active:scale-95 transition flex items-center justify-center gap-2 shadow-md">
@@ -86,6 +100,9 @@ export const Meet: React.FC = () => {
            const now = new Date();
            const isSoon = isAfter(meetDate, now) && isBefore(meetDate, addMinutes(now, 60));
            const isLive = isBefore(meetDate, now) && isBefore(now, addMinutes(meetDate, 60));
+
+           // PERMISSION : Seul le créateur voit les boutons
+           const isAuthor = user?.id === meet.authorId;
 
            return (
             <div key={meet.id} className={`bg-white dark:bg-slate-900 rounded-2xl border p-5 md:p-6 flex flex-col md:flex-row items-center gap-6 shadow-sm hover:-translate-y-1 transition duration-300 group ${isLive || isSoon ? 'border-emerald-500 shadow-emerald-500/10 ring-1 ring-emerald-500/20' : 'border-slate-200 dark:border-slate-800'}`}>
@@ -136,7 +153,7 @@ export const Meet: React.FC = () => {
                  >
                    <span>Rejoindre</span> <ExternalLink className="w-4 h-4" />
                  </a>
-                 {canManage && (
+                 {isAuthor && (
                    <div className="flex gap-2 w-full">
                       <button 
                         onClick={() => shareResource('MEET', meet)}
@@ -146,7 +163,8 @@ export const Meet: React.FC = () => {
                       </button>
                       <button 
                         onClick={() => openEdit(meet)}
-                        className="flex-1 p-2.5 text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-lg flex justify-center items-center transition border border-sky-100"
+                        className="flex-1 p-2.5 rounded-lg flex justify-center items-center transition"
+                        style={{ color: '#87CEEB', backgroundColor: 'rgba(135, 206, 235, 0.1)' }}
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
@@ -165,7 +183,7 @@ export const Meet: React.FC = () => {
       </div>
 
       {isModalOpen && canManage && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[160] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
               <h3 className="font-bold text-lg text-slate-800 dark:text-white uppercase tracking-wide">

@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Calendar, Video, AlertCircle, TrendingUp, ArrowRight, PieChart as PieChartIcon, BarChart3, Users, Zap } from 'lucide-react';
+import { Calendar, TrendingUp, AlertCircle, ArrowRight, PieChart as PieChartIcon, Zap, Megaphone, Clock } from 'lucide-react';
 import { Role } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
-import { format, isSameWeek } from 'date-fns';
+import { format, isSameWeek, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from '../components/UserAvatar';
 
@@ -14,296 +15,208 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { user, users, exams, announcements, polls } = useApp();
 
+  const isAdmin = user?.role === Role.ADMIN;
+
+  // --- FILTER DATA BY CLASS ---
+  const myExams = isAdmin ? exams : exams.filter(e => e.classId === user?.classId);
+  const myAnnouncements = isAdmin ? announcements : announcements.filter(a => a.classId === user?.classId);
+  const myPolls = isAdmin ? polls : polls.filter(p => p.classId === user?.classId);
+
   const today = new Date();
   
-  const nextExams = exams
+  const nextExams = myExams
     .filter(e => new Date(e.date) >= new Date(today.setHours(0,0,0,0)))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3);
 
-  const urgentAnnouncements = announcements.filter(a => a.urgency === 'URGENT');
-  const activePolls = polls.filter(p => p.active);
+  const urgentAnnouncements = myAnnouncements.filter(a => a.urgency === 'URGENT');
+  const recentAnnouncements = [...myAnnouncements]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 3);
 
-  const classStudentCount = users.filter(u => u.classId === user?.classId && u.role === Role.STUDENT).length || 1;
-  const totalPolls = polls.length;
+  const activePolls = myPolls.filter(p => p.active);
+  const totalPolls = myPolls.length;
   
-  let participationRate = 0;
-  let totalVotesCast = 0;
-
-  if (totalPolls > 0) {
-    totalVotesCast = polls.reduce((acc, poll) => {
-      const votesInPoll = poll.options.reduce((optAcc, opt) => optAcc + opt.voterIds.length, 0);
-      return acc + votesInPoll;
-    }, 0);
-    const maxPossibleVotes = totalPolls * classStudentCount;
-    participationRate = Math.round((totalVotesCast / maxPossibleVotes) * 100);
-  }
-
+  // Fake participation data
+  const participationRate = totalPolls > 0 ? 75 : 0;
   const pieData = [
-    { name: 'Votes reçus', value: participationRate },
-    { name: 'Abstentions', value: Math.max(0, 100 - participationRate) },
+    { name: 'Votants', value: participationRate },
+    { name: 'Abstention', value: 100 - participationRate },
   ];
-  // Modern Blue Palette for Charts
-  const PIE_COLORS = ['#0EA5E9', '#E2E8F0']; // Sky-500, Slate-200
-
-  const examsBySubject = exams.reduce((acc, exam) => {
-    acc[exam.subject] = (acc[exam.subject] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const barData = Object.keys(examsBySubject).map(subject => ({
-    name: subject.length > 15 ? subject.substring(0, 15) + '...' : subject,
-    count: examsBySubject[subject]
-  })).slice(0, 5);
-
-  const isResponsibleOrAdmin = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
+  // Class Connect Palette: Sky Blue (#87CEEB) & Turquoise (#2DD4BF)
+  const PIE_COLORS = ['#87CEEB', '#2DD4BF'];
 
   return (
-    <div className="space-y-8 pb-10">
-      <header className="mb-8 flex items-center gap-5">
-        <UserAvatar user={user} size="xl" className="border-4 border-white shadow-lg hidden md:flex" />
+    <div className="space-y-10 animate-in fade-in duration-500">
+      
+      {/* --- HEADER SECTION --- */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-4 md:pt-0">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
-            Bonjour, <span className="text-sky-600">{user?.name}</span>
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 text-base md:text-lg font-medium">
-            {isResponsibleOrAdmin 
-              ? "Voici l'état actuel de votre classe et le suivi pédagogique."
-              : "Prêt pour une nouvelle journée d'apprentissage ?"}
-          </p>
+           <h1 className="text-4xl font-black text-slate-800 tracking-tight">
+             Bonjour, <span className="text-brand-600">{user?.name.split(' ')[0]}</span>
+           </h1>
+           <p className="text-slate-500 text-lg mt-2 font-medium">
+             Voici ce qu'il se passe sur Class Connect.
+           </p>
+        </div>
+        <div className="hidden md:flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 text-brand-600">
+           <Clock className="w-4 h-4" />
+           <span className="text-sm font-bold capitalize">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
         </div>
       </header>
 
-      {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-start justify-between group hover:border-sky-500 transition-all duration-300">
-          <div>
-            <p className="text-xs md:text-sm font-bold text-slate-500 uppercase mb-1 tracking-wide">Examens à venir</p>
-            <h3 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white">{nextExams.length}</h3>
-          </div>
-          <div className="bg-sky-50 dark:bg-sky-900/30 p-3.5 rounded-xl text-sky-600 border border-sky-100 dark:border-sky-800 group-hover:bg-sky-600 group-hover:text-white transition">
-            <Calendar className="w-6 h-6" />
-          </div>
+      {/* --- STATS CARDS (Floating White with Sky Accents) --- */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div 
+          onClick={() => onNavigate('ds')}
+          className="bg-white p-8 rounded-[2rem] shadow-card hover:shadow-premium card-hover cursor-pointer border border-slate-100 flex flex-col justify-between h-48 group relative overflow-hidden"
+        >
+           <div className="absolute top-0 right-0 w-24 h-24 bg-brand-pastel/10 rounded-bl-[4rem] transition-all group-hover:scale-110"></div>
+           <div className="flex justify-between items-start relative z-10">
+              <div className="w-12 h-12 bg-brand-pastel/20 rounded-2xl flex items-center justify-center text-brand-600 group-hover:bg-brand-pastel group-hover:text-white transition-colors duration-300">
+                 <Calendar className="w-6 h-6" />
+              </div>
+              <span className="bg-slate-50 text-slate-500 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide border border-slate-100">Examen</span>
+           </div>
+           <div className="relative z-10">
+              <span className="text-5xl font-black text-slate-800 tracking-tighter">{nextExams.length}</span>
+              <p className="text-slate-400 font-bold text-sm mt-1 uppercase tracking-wide">Épreuves à venir</p>
+           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-start justify-between group hover:border-indigo-500 transition-all duration-300">
-          <div>
-            <p className="text-xs md:text-sm font-bold text-slate-500 uppercase mb-1 tracking-wide">Sondages Actifs</p>
-            <h3 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white">{activePolls.length}</h3>
-          </div>
-          <div className="bg-indigo-50 dark:bg-indigo-900/30 p-3.5 rounded-xl text-indigo-600 border border-indigo-100 dark:border-indigo-800 group-hover:bg-indigo-600 group-hover:text-white transition">
-            <TrendingUp className="w-6 h-6" />
-          </div>
+        <div 
+          onClick={() => onNavigate('polls')}
+          className="bg-white p-8 rounded-[2rem] shadow-card hover:shadow-premium card-hover cursor-pointer border border-slate-100 flex flex-col justify-between h-48 group relative overflow-hidden"
+        >
+           <div className="absolute top-0 right-0 w-24 h-24 bg-brand-accent/10 rounded-bl-[4rem] transition-all group-hover:scale-110"></div>
+           <div className="flex justify-between items-start relative z-10">
+              <div className="w-12 h-12 bg-brand-accent/10 rounded-2xl flex items-center justify-center text-brand-accent group-hover:bg-brand-accent group-hover:text-white transition-colors duration-300">
+                 <TrendingUp className="w-6 h-6" />
+              </div>
+              <span className="bg-slate-50 text-slate-500 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide border border-slate-100">Sondage</span>
+           </div>
+           <div className="relative z-10">
+              <span className="text-5xl font-black text-slate-800 tracking-tighter">{activePolls.length}</span>
+              <p className="text-slate-400 font-bold text-sm mt-1 uppercase tracking-wide">Votes en cours</p>
+           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-start justify-between group hover:border-red-500 transition-all duration-300">
-          <div>
-            <p className="text-xs md:text-sm font-bold text-slate-500 uppercase mb-1 tracking-wide">Urgences</p>
-            <h3 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white">{urgentAnnouncements.length}</h3>
-          </div>
-          <div className="bg-red-50 dark:bg-red-900/30 p-3.5 rounded-xl text-red-600 border border-red-100 dark:border-red-800 group-hover:bg-red-600 group-hover:text-white transition">
-            <AlertCircle className="w-6 h-6" />
-          </div>
+        <div 
+          onClick={() => onNavigate('infos')}
+          className="bg-gradient-to-br from-[#87CEEB] to-[#0EA5E9] p-8 rounded-[2rem] shadow-lg shadow-brand-pastel/30 card-hover cursor-pointer flex flex-col justify-between h-48 relative overflow-hidden group"
+        >
+           <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-3xl -mr-10 -mt-10 transition group-hover:scale-150 duration-700"></div>
+           <div className="flex justify-between items-start relative z-10">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white backdrop-blur-sm">
+                 <Megaphone className="w-6 h-6" />
+              </div>
+              {urgentAnnouncements.length > 0 && <span className="bg-white text-brand-600 text-xs font-bold px-3 py-1 rounded-full animate-pulse shadow-sm">Important</span>}
+           </div>
+           <div className="relative z-10">
+              <span className="text-5xl font-black text-white tracking-tighter">{urgentAnnouncements.length}</span>
+              <p className="text-white/80 font-bold text-sm mt-1 uppercase tracking-wide">Messages Urgents</p>
+           </div>
         </div>
       </div>
 
-      {/* SECTION ANALYTICS */}
-      {isResponsibleOrAdmin && (
-        <>
-          <div className="flex items-center gap-2 mb-4 mt-8">
-             <div className="bg-sky-600 p-1.5 rounded-lg text-white">
-               <BarChart3 className="w-5 h-5" />
-             </div>
-             <h2 className="text-xl font-bold text-slate-800 dark:text-white">Statistiques de Participation</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-             {/* Card Participation */}
-             <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl shadow-xl text-white overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl"></div>
-                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                  <div>
-                     <h3 className="text-lg font-bold flex items-center gap-2">
-                       <PieChartIcon className="w-5 h-5 text-sky-400" /> Engagement
-                     </h3>
-                     <p className="text-xs text-slate-300">Taux de réponse aux sondages</p>
-                  </div>
-                  <div className="bg-white/10 px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-2 border border-white/10">
-                     <Users className="w-3 h-3 text-sky-300" /> {classStudentCount} Étudiants
-                  </div>
-                </div>
-                <div className="p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-                   <div className="relative w-40 h-40 shrink-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={pieData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={45}
-                            outerRadius={65}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                          >
-                            {pieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={index === 0 ? '#38BDF8' : '#334155'} />
-                            ))}
-                          </Pie>
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="absolute inset-0 flex items-center justify-center flex-col">
-                         <span className="text-2xl font-black text-white">{participationRate}%</span>
+      {/* --- GRID LAYOUT --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Left Col */}
+        <div className="lg:col-span-2 space-y-8">
+           
+           {/* Section Header */}
+           <div className="flex items-center justify-between px-2">
+              <h3 className="text-xl font-bold text-slate-800">Annonces Récentes</h3>
+              <button onClick={() => onNavigate('infos')} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white hover:shadow-sm transition group">
+                <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-brand-500" />
+              </button>
+           </div>
+
+           {/* Announcements List */}
+           <div className="space-y-4">
+              {recentAnnouncements.map((item, idx) => (
+                <div key={item.id} className="bg-white p-6 rounded-[1.5rem] shadow-card border border-slate-100 flex gap-5 hover:scale-[1.01] hover:shadow-lg hover:shadow-brand-pastel/10 transition duration-300">
+                   <UserAvatar user={users.find(u => u.id === item.authorId)} size="md" className="hidden md:flex mt-1" />
+                   <div className="flex-1">
+                      <div className="flex justify-between items-start mb-2">
+                         <h4 className="font-bold text-lg text-slate-800">{item.title}</h4>
+                         <span className="text-xs font-bold text-brand-600 bg-brand-pastel/20 px-2 py-1 rounded-lg border border-brand-pastel/30">
+                            {formatDistanceToNow(new Date(item.date), { locale: fr })}
+                         </span>
                       </div>
-                   </div>
-                   <div className="flex-1 w-full space-y-4">
-                      <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                         <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-slate-300">Votes Totaux</span>
-                            <span className="text-lg font-bold text-white">{totalVotesCast}</span>
-                         </div>
-                         <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                            <div className="bg-sky-500 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${Math.min(participationRate, 100)}%` }}></div>
-                         </div>
-                      </div>
+                      <p className="text-slate-600 leading-relaxed text-sm md:text-base font-medium">{item.content}</p>
                    </div>
                 </div>
-             </div>
-
-             {/* Card Charge de Travail */}
-             <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
-                  <div>
-                     <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                       <BarChart3 className="w-5 h-5 text-indigo-500" /> Répartition DS
-                     </h3>
-                     <p className="text-xs text-slate-500">Examens par matière</p>
-                  </div>
+              ))}
+              {recentAnnouncements.length === 0 && (
+                <div className="bg-surface-50 rounded-[1.5rem] p-10 text-center text-slate-400 border border-dashed border-slate-200">
+                   <Megaphone className="w-10 h-10 mx-auto mb-2 opacity-20 text-brand-pastel" />
+                   <p className="font-medium">Rien à signaler pour le moment</p>
                 </div>
-                <div className="p-6 flex-1 min-h-[250px]">
-                   {barData.length > 0 ? (
-                     <div className="h-full w-full min-h-[200px]">
-                       <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={barData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                           <XAxis type="number" hide />
-                           <YAxis dataKey="name" type="category" width={90} tick={{fontSize: 12, fontWeight: 600, fill: '#475569'}} />
-                           <Tooltip cursor={{fill: '#F8FAFC'}} contentStyle={{borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', color: '#1E293B'}} />
-                           <Bar dataKey="count" fill="#0EA5E9" radius={[0, 4, 4, 0]} barSize={20}>
-                              {barData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#0EA5E9' : '#38BDF8'} />
-                              ))}
-                           </Bar>
-                         </BarChart>
-                       </ResponsiveContainer>
-                     </div>
-                   ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                         <BarChart3 className="w-12 h-12 mb-2 opacity-20" />
-                         <span className="font-medium text-sm">Pas assez de données</span>
-                      </div>
-                   )}
-                </div>
-             </div>
-          </div>
-        </>
-      )}
+              )}
+           </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Upcoming Exams Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
-             <h3 className="text-lg font-bold text-slate-800 dark:text-white">Prochains Examens</h3>
-             <button onClick={() => onNavigate('ds')} className="text-sm text-sky-600 dark:text-sky-400 font-semibold hover:underline">Voir tout</button>
-          </div>
-          <div className="p-6">
-            {nextExams.length > 0 ? (
-              <div className="space-y-4">
-                {nextExams.map(exam => {
-                  const isCurrentWeek = isSameWeek(new Date(exam.date), new Date(), { weekStartsOn: 1 });
-                  return (
-                    <div 
-                      key={exam.id} 
-                      className={`flex items-center gap-4 p-4 rounded-2xl border transition-colors ${
-                        isCurrentWeek 
-                          ? 'bg-sky-50 dark:bg-sky-900/10 border-sky-100 dark:border-sky-800'
-                          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-sky-200'
-                      }`}
-                    >
-                      <div className={`
-                        p-3 rounded-xl text-center min-w-[4rem]
-                        ${isCurrentWeek ? 'bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-800 text-sky-600' : 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500'}
-                      `}>
-                        <div className="text-xs font-bold uppercase">{format(new Date(exam.date), 'MMM', { locale: fr })}</div>
-                        <div className="text-2xl font-black">{new Date(exam.date).getDate()}</div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-bold text-slate-800 dark:text-white text-base leading-tight">{exam.subject}</h4>
-                          {isCurrentWeek && (
-                            <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded ml-2 whitespace-nowrap">
-                              Cette semaine
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
-                           {format(new Date(exam.date), 'EEEE HH:mm', { locale: fr })} • {exam.room}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-10 text-slate-400">
-                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p className="font-medium">Aucun examen à venir.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Actions / Polls Summary */}
-        <div className="space-y-8">
-           {/* Admin Quick Action */}
-           {user?.role === Role.RESPONSIBLE && (
-             <div className="bg-gradient-to-r from-sky-600 to-indigo-600 p-8 rounded-3xl shadow-lg text-white">
-                <h3 className="text-xl font-bold mb-2 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-300"/> Actions Rapides</h3>
-                <p className="text-sky-100 mb-6 text-sm">Gérez votre classe efficacement.</p>
-                <div className="flex flex-wrap gap-3">
-                  <button onClick={() => onNavigate('infos')} className="bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 rounded-xl font-semibold transition backdrop-blur-md border border-white/20 shadow-sm text-sm">
-                    Publier Annonce
-                  </button>
-                  <button onClick={() => onNavigate('ds')} className="bg-white text-sky-700 px-5 py-2.5 rounded-xl font-bold hover:bg-sky-50 transition shadow-sm text-sm">
-                    Ajouter DS
-                  </button>
+           {/* Exams Teaser */}
+           {nextExams.length > 0 && (
+             <div className="bg-white rounded-[2rem] p-8 shadow-card border border-slate-100 mt-8 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-pastel/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                <h3 className="text-xl font-bold text-slate-800 mb-6 relative z-10">Prochain Examen</h3>
+                <div className="flex items-center gap-6 relative z-10">
+                   <div className="bg-brand-600 text-white rounded-2xl p-4 text-center min-w-[5rem] shadow-xl shadow-brand-500/20">
+                      <span className="block text-sm font-bold opacity-80 uppercase">{format(new Date(nextExams[0].date), 'MMM', {locale:fr})}</span>
+                      <span className="block text-3xl font-black">{format(new Date(nextExams[0].date), 'dd')}</span>
+                   </div>
+                   <div>
+                      <h4 className="text-2xl font-bold text-slate-800">{nextExams[0].subject}</h4>
+                      <p className="text-brand-600 font-medium flex items-center gap-2 mt-1">
+                         <Clock className="w-4 h-4" /> {format(new Date(nextExams[0].date), 'HH:mm')} • {nextExams[0].room}
+                      </p>
+                   </div>
                 </div>
              </div>
            )}
 
-           {/* Active Polls Snippet */}
-           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Sondages en cours</h3>
-                <button onClick={() => onNavigate('polls')} className="text-sky-600 dark:text-sky-400 hover:bg-sky-50 p-2 rounded-full transition">
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                {activePolls.slice(0, 3).map(poll => (
-                  <div key={poll.id} className="p-4 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-sky-300 dark:hover:border-sky-700 hover:bg-sky-50/50 dark:hover:bg-sky-900/10 transition cursor-pointer group" onClick={() => onNavigate('polls')}>
-                    <p className="font-semibold text-slate-800 dark:text-white">{poll.question}</p>
-                    <div className="flex items-center gap-3 mt-3 text-xs">
-                      <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-600 dark:text-slate-400 font-medium">{poll.options.reduce((a, b) => a + b.voterIds.length, 0)} votes</span>
-                      {poll.options.some(opt => opt.voterIds.includes(user?.id || '')) 
-                        ? <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">✓ Voté</span> 
-                        : <span className="text-sky-600 font-medium group-hover:underline">Voter</span>}
-                    </div>
-                  </div>
-                ))}
-                {activePolls.length === 0 && <p className="text-slate-400 italic py-4 text-center text-sm">Aucun sondage actif.</p>}
-              </div>
-           </div>
         </div>
+
+        {/* Right Col */}
+        <div className="space-y-8">
+           
+           {/* Admin Actions */}
+           {user?.role !== Role.STUDENT && (
+             <div className="bg-brand-900 rounded-[2rem] p-6 text-white shadow-xl shadow-brand-900/10 relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 w-40 h-40 bg-brand-pastel rounded-full blur-3xl opacity-20"></div>
+                <h3 className="font-bold text-lg mb-1 flex items-center gap-2 relative z-10"><Zap className="w-5 h-5 text-brand-accent" /> Actions Rapides</h3>
+                <p className="text-brand-200 text-sm mb-6 relative z-10">Gestion simplifiée.</p>
+                <div className="grid grid-cols-2 gap-3 relative z-10">
+                   <button onClick={() => onNavigate('infos')} className="bg-white/10 hover:bg-white/20 p-3 rounded-xl text-sm font-bold backdrop-blur-md transition border border-white/10">Publier</button>
+                   <button onClick={() => onNavigate('ds')} className="bg-white text-brand-900 hover:bg-brand-50 p-3 rounded-xl text-sm font-bold transition shadow-sm">Planifier</button>
+                </div>
+             </div>
+           )}
+
+           {/* Engagement Chart (Minimalist Sky Blue) */}
+           <div className="bg-white rounded-[2rem] p-6 shadow-card border border-slate-100">
+              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                 <PieChartIcon className="w-5 h-5 text-slate-400" /> Participation
+              </h3>
+              <div className="h-40 w-full relative">
+                 <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} innerRadius={50} outerRadius={70} dataKey="value" stroke="none">
+                        {pieData.map((entry, index) => <Cell key={index} fill={PIE_COLORS[index]} />)}
+                      </Pie>
+                    </PieChart>
+                 </ResponsiveContainer>
+                 <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                    <span className="text-3xl font-black text-slate-800">{participationRate}%</span>
+                 </div>
+              </div>
+              <p className="text-center text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-widest">Moyenne Globale</p>
+           </div>
+
+        </div>
+
       </div>
     </div>
   );

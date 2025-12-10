@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Exam } from '../types';
 import { CalendarDays, Clock, MapPin, Trash2, Plus, Download, Pencil, AlertCircle, X, Send } from 'lucide-react';
-import { format, isSameWeek } from 'date-fns';
+import { format, isSameWeek, addMinutes, isAfter } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export const DS: React.FC = () => {
@@ -16,7 +17,21 @@ export const DS: React.FC = () => {
   const [room, setRoom] = useState('');
   const [notes, setNotes] = useState('');
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
-  const canManage = user?.role === Role.RESPONSIBLE;
+
+  // Création réservée aux Responsables ou Admins (pour éviter les trolls)
+  const canCreate = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
+  const isAdmin = user?.role === Role.ADMIN;
+
+  // --- FILTER BY CLASS ---
+  const myExams = isAdmin ? exams : exams.filter(e => e.classId === user?.classId);
+
+  // --- FILTRE AUTOMATIQUE : Masquer les examens passés ---
+  const now = new Date();
+  const upcomingExams = myExams.filter(exam => {
+    // On garde l'examen si sa date de fin (début + durée) est dans le futur
+    const examEnd = addMinutes(new Date(exam.date), exam.durationMinutes);
+    return isAfter(examEnd, now);
+  }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const openCreate = () => {
     setEditingId(null);
@@ -58,9 +73,9 @@ export const DS: React.FC = () => {
   };
 
   const handleExportCSV = () => {
-    if (exams.length === 0) return;
+    if (upcomingExams.length === 0) return;
     const headers = ['Matière', 'Date', 'Heure', 'Durée (min)', 'Salle', 'Notes'];
-    const rows = exams.map(e => [
+    const rows = upcomingExams.map(e => [
       e.subject, format(new Date(e.date), 'yyyy-MM-dd'), format(new Date(e.date), 'HH:mm'), e.durationMinutes, e.room, e.notes || ''
     ]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -74,30 +89,30 @@ export const DS: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-0 pb-20 md:pb-12">
+    <div className="max-w-5xl mx-auto px-0 md:px-0">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-10 gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white flex items-center gap-3 tracking-tight">
              <span className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 p-2 rounded-xl text-red-600"><CalendarDays className="w-8 h-8" /></span>
              Examens
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-lg">Calendrier officiel des évaluations.</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-lg">Calendrier officiel des évaluations à venir.</p>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          {exams.length > 0 && (
+          {upcomingExams.length > 0 && (
              <button
                onClick={handleExportCSV}
-               className="flex-1 md:flex-none justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 px-4 py-3 md:px-6 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-2 shadow-sm active:scale-95"
+               className="w-full md:w-auto flex-1 md:flex-none justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 px-4 py-3 md:px-6 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-2 shadow-sm active:scale-95"
              >
-               <Download className="w-5 h-5" /> <span className="hidden md:inline">Exporter</span>
+               <Download className="w-5 h-5" /> <span className="">Exporter</span>
              </button>
           )}
 
-          {canManage && (
+          {canCreate && (
             <button 
               onClick={openCreate}
-              className="flex-1 md:flex-none justify-center btn-primary text-white px-4 py-3 md:px-6 rounded-xl font-bold active:scale-95 transition flex items-center gap-2 shadow-md"
+              className="w-full md:w-auto flex-1 md:flex-none justify-center btn-primary text-white px-4 py-3 md:px-6 rounded-xl font-bold active:scale-95 transition flex items-center gap-2 shadow-md"
             >
               <Plus className="w-5 h-5" /> <span>Planifier</span>
             </button>
@@ -107,15 +122,18 @@ export const DS: React.FC = () => {
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
-          {exams.length === 0 && (
+          {upcomingExams.length === 0 && (
              <div className="p-16 text-center text-slate-400 flex flex-col items-center">
                <CalendarDays className="w-16 h-16 opacity-20 text-slate-800 dark:text-white mb-4" />
-               <p className="font-medium text-lg">Aucun examen planifié.</p>
+               <p className="font-medium text-lg">Aucun examen à venir.</p>
              </div>
           )}
-          {exams.map((exam) => {
+          {upcomingExams.map((exam) => {
             const examDate = new Date(exam.date);
             const isThisWeek = isSameWeek(examDate, new Date());
+            
+            // PERMISSION : Seul le créateur voit les boutons
+            const isAuthor = user?.id === exam.authorId;
 
             return (
               <div key={exam.id} className="p-5 md:p-8 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition flex flex-col md:flex-row gap-6 md:items-center group">
@@ -169,36 +187,41 @@ export const DS: React.FC = () => {
                 )}
 
                 {/* Actions */}
-                {canManage && (
-                  <div className="grid grid-cols-3 md:flex md:justify-end gap-2 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
+                <div className="grid grid-cols-1 md:flex md:justify-end gap-2 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
                     <button 
                       onClick={() => shareResource('EXAM', exam)}
-                      className="flex items-center justify-center gap-2 px-3 py-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition text-sm font-bold border border-emerald-100"
+                      className="w-full md:w-auto flex items-center justify-center gap-2 px-3 py-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition text-sm font-bold border border-emerald-100"
                     >
-                      <Send className="w-4 h-4" /> <span className="md:hidden">Envoyer</span>
+                      <Send className="w-4 h-4" /> <span className="md:hidden">Partager</span>
                     </button>
-                    <button 
-                      onClick={() => openEdit(exam)}
-                      className="flex items-center justify-center gap-2 px-3 py-2 text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-lg transition text-sm font-bold border border-sky-100"
-                    >
-                      <Pencil className="w-4 h-4" /> <span className="md:hidden">Modifier</span>
-                    </button>
-                    <button 
-                      onClick={() => deleteExam(exam.id)}
-                      className="flex items-center justify-center gap-2 px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition text-sm font-bold border border-red-100"
-                    >
-                      <Trash2 className="w-4 h-4" /> <span className="md:hidden">Supprimer</span>
-                    </button>
-                  </div>
-                )}
+                    
+                    {isAuthor && (
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => openEdit(exam)}
+                          className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition text-sm font-bold"
+                          style={{ color: '#87CEEB', backgroundColor: 'rgba(135, 206, 235, 0.1)' }}
+                        >
+                          <Pencil className="w-4 h-4" /> <span className="md:hidden">Modifier</span>
+                        </button>
+                        
+                        <button 
+                          onClick={() => deleteExam(exam.id)}
+                          className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition text-sm font-bold border border-red-100"
+                        >
+                          <Trash2 className="w-4 h-4" /> <span className="md:hidden">Supprimer</span>
+                        </button>
+                      </div>
+                    )}
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
-       {isModalOpen && canManage && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
+       {isModalOpen && canCreate && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[160] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
               <h3 className="text-lg font-bold text-slate-800 dark:text-white uppercase tracking-wide">

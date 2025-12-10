@@ -1,9 +1,13 @@
+
+
+
 import React, { createContext, useContext, useState, PropsWithChildren, useMemo, useEffect } from 'react';
-import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption, SentEmail } from '../types';
+import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption, SentEmail, EmailConfig } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { INITIAL_CLASSES, INITIAL_USERS, INITIAL_ANNOUNCEMENTS, INITIAL_MEETS, INITIAL_EXAMS, INITIAL_POLLS } from '../constants';
+import { sendEmail } from '../services/emailService';
 
 interface AppContextType {
   user: User | null;
@@ -23,12 +27,16 @@ interface AppContextType {
   auditLogs: AuditLog[];
   notifications: Notification[];
   notificationHistory: Notification[];
-  addNotification: (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING', targetPage?: string) => void;
+  addNotification: (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING', targetPage?: string, resourceId?: string) => void;
   dismissNotification: (id: string) => void;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
   deleteNotification: (id: string) => void;
   clearNotificationHistory: () => void;
+  
+  // Deep Linking State
+  highlightedItemId: string | null;
+  setHighlightedItemId: (id: string | null) => void;
 
   // Actions
   login: (email: string) => Promise<boolean>; 
@@ -40,7 +48,7 @@ interface AppContextType {
   updateAnnouncement: (id: string, item: Partial<Announcement>) => Promise<void>;
   deleteAnnouncement: (id: string) => Promise<void>;
   
-  addMeet: (item: Omit<MeetSession, 'id' | 'classId'>, targetRoles?: Role[]) => Promise<void>;
+  addMeet: (item: Omit<MeetSession, 'id' | 'classId' | 'authorId'>, targetRoles?: Role[]) => Promise<void>;
   updateMeet: (id: string, item: Partial<MeetSession>) => Promise<void>;
   deleteMeet: (id: string) => Promise<void>;
   
@@ -48,12 +56,14 @@ interface AppContextType {
   updateExam: (id: string, item: Partial<Exam>) => Promise<void>;
   deleteExam: (id: string) => Promise<void>;
   
-  addPoll: (item: Omit<Poll, 'id' | 'createdAt' | 'classId'>) => Promise<void>;
+  addPoll: (item: Omit<Poll, 'id' | 'createdAt' | 'classId' | 'authorId'>) => Promise<void>;
   updatePoll: (id: string, item: Partial<Poll>) => Promise<void>;
   votePoll: (pollId: string, optionId: string) => Promise<void>;
   deletePoll: (id: string) => Promise<void>;
 
-  // Sharing
+  // Sharing & Config
+  emailConfig: EmailConfig;
+  updateEmailConfig: (config: EmailConfig) => void;
   shareResource: (type: 'ANNOUNCEMENT' | 'MEET' | 'EXAM' | 'POLL', item: any) => Promise<void>;
   resendEmail: (email: SentEmail) => void;
 
@@ -79,20 +89,30 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const [meets, setMeets] = useState<MeetSession[]>(INITIAL_MEETS);
   const [exams, setExams] = useState<Exam[]>(INITIAL_EXAMS);
   const [polls, setPolls] = useState<Poll[]>(INITIAL_POLLS);
-  const [schoolName, setSchoolNameState] = useState('SunuClasse');
+  // Defaulting to "Class Connect"
+  const [schoolName, setSchoolNameState] = useState('Class Connect');
   
+  // Email Config State
+  const [emailConfig, setEmailConfig] = useState<EmailConfig>({
+    provider: 'MAILTO', // Default to client side for safety
+    senderName: 'SunuClasse'
+  });
+
   // UX / Logs
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationHistory, setNotificationHistory] = useState<Notification[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
+  
+  // Deep Linking
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
 
   // --- Helpers ---
   const getCurrentClass = () => classes.find(c => c.id === user?.classId);
 
-  const addNotification = (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING', targetPage?: string) => {
+  const addNotification = (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING', targetPage?: string, resourceId?: string) => {
     const id = Math.random().toString(36).substr(2, 9);
-    const notif: Notification = { id, message, type, timestamp: new Date().toISOString(), read: false, targetPage };
+    const notif: Notification = { id, message, type, timestamp: new Date().toISOString(), read: false, targetPage, resourceId };
     
     // Toast (temporary)
     setNotifications(prev => [...prev, notif]);
@@ -177,8 +197,20 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
       if (logsData) setAuditLogs(logsData as AuditLog[]);
       
       // 5. Settings
-      const { data: settingsData } = await supabase.from('app_settings').select('*').eq('key', 'school_name').single();
-      if (settingsData) setSchoolNameState(settingsData.value);
+      const { data: settingsData } = await supabase.from('app_settings').select('*');
+      if (settingsData) {
+        const schoolNameSetting = settingsData.find(s => s.key === 'school_name');
+        if (schoolNameSetting) setSchoolNameState(schoolNameSetting.value);
+        
+        // Load Email Config if exists (Simulated here, ideally stored securely)
+        const emailProvider = settingsData.find(s => s.key === 'email_provider')?.value;
+        const emailSender = settingsData.find(s => s.key === 'email_sender')?.value;
+        // WARNING: API Keys should technically be in env vars or secure storage, not plain DB text
+        // For this demo, we assume they might be there or managed via local state in session
+        if (emailProvider) {
+            setEmailConfig(prev => ({ ...prev, provider: emailProvider as any, senderEmail: emailSender }));
+        }
+      }
 
     } catch (err) {
       console.error("Erreur chargement données:", err);
@@ -238,72 +270,153 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     await supabase.from('app_settings').upsert({ key: 'school_name', value: name });
     logAction('CONFIG', `Changement nom école: ${name}`, 'WARNING');
   };
+  
+  const updateEmailConfig = async (config: EmailConfig) => {
+    setEmailConfig(config);
+    // Persist non-sensitive data
+    await supabase.from('app_settings').upsert({ key: 'email_provider', value: config.provider });
+    if (config.senderEmail) {
+        await supabase.from('app_settings').upsert({ key: 'email_sender', value: config.senderEmail });
+    }
+    logAction('CONFIG', `Mise à jour config email: ${config.provider}`, 'WARNING');
+  };
 
   // --- Content Management Wrappers ---
-  // Note: For simplicity in this demo, we are updating local state. 
-  // In a real app, these would be Supabase calls.
 
+  // ANNOUNCEMENTS
   const addAnnouncement = async (item: any, targetRoles?: Role[]) => {
     const newItem = { ...item, id: Math.random().toString(36).substr(2, 9), authorId: user?.id, classId: user?.classId };
     setAnnouncements(prev => [newItem, ...prev]);
-    addNotification('Annonce publiée avec succès', 'SUCCESS');
+    addNotification('Annonce publiée avec succès', 'SUCCESS', 'infos', newItem.id);
     logAction('PUBLICATION', `Annonce: ${item.title}`);
   };
 
   const updateAnnouncement = async (id: string, item: any) => {
+    const existing = announcements.find(a => a.id === id);
+    if (!existing) return;
+    // Security Check: Creator or Admin
+    if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
+       addNotification("Action non autorisée", "ERROR");
+       logAction('SECURITY', `Tentative modif annonce ${id} par ${user?.name}`, 'CRITICAL');
+       return;
+    }
+
     setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, ...item } : a));
-    addNotification('Annonce mise à jour', 'SUCCESS');
+    addNotification('Annonce mise à jour', 'SUCCESS', 'infos', id);
     logAction('MODIFICATION', `Annonce ID: ${id}`);
   };
 
   const deleteAnnouncement = async (id: string) => {
+    const existing = announcements.find(a => a.id === id);
+    if (!existing) return;
+    // Security Check: Creator or Admin (Moderation)
+    if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
+       addNotification("Action non autorisée", "ERROR");
+       logAction('SECURITY', `Tentative suppression annonce ${id} par ${user?.name}`, 'CRITICAL');
+       return;
+    }
+
     setAnnouncements(prev => prev.filter(a => a.id !== id));
     addNotification('Annonce supprimée', 'INFO');
     logAction('SUPPRESSION', `Annonce ID: ${id}`, 'WARNING');
   };
 
+  // MEETS
   const addMeet = async (item: any, targetRoles?: Role[]) => {
-    const newItem = { ...item, id: Math.random().toString(36).substr(2, 9), classId: user?.classId };
+    const newItem = { ...item, id: Math.random().toString(36).substr(2, 9), classId: user?.classId, authorId: user?.id };
     setMeets(prev => [...prev, newItem]);
-    addNotification('Session Meet programmée', 'SUCCESS');
+    addNotification('Session Meet programmée', 'SUCCESS', 'meet', newItem.id);
     logAction('CREATION', `Meet: ${item.subject}`);
   };
 
   const updateMeet = async (id: string, item: any) => {
+    const existing = meets.find(m => m.id === id);
+    if (!existing) return;
+    if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
+       addNotification("Action non autorisée", "ERROR");
+       logAction('SECURITY', `Tentative modif meet ${id}`, 'CRITICAL');
+       return;
+    }
+
     setMeets(prev => prev.map(m => m.id === id ? { ...m, ...item } : m));
-    addNotification('Session Meet mise à jour', 'SUCCESS');
+    addNotification('Session Meet mise à jour', 'SUCCESS', 'meet', id);
+    logAction('MODIFICATION', `Meet ID: ${id}`);
   };
 
   const deleteMeet = async (id: string) => {
+    const existing = meets.find(m => m.id === id);
+    if (!existing) return;
+    if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
+       addNotification("Action non autorisée", "ERROR");
+       logAction('SECURITY', `Tentative suppression meet ${id}`, 'CRITICAL');
+       return;
+    }
+
     setMeets(prev => prev.filter(m => m.id !== id));
     addNotification('Session Meet supprimée', 'INFO');
+    logAction('SUPPRESSION', `Meet ID: ${id}`, 'WARNING');
   };
 
+  // EXAMS
   const addExam = async (item: any, targetRoles?: Role[]) => {
     const newItem = { ...item, id: Math.random().toString(36).substr(2, 9), authorId: user?.id, classId: user?.classId };
     setExams(prev => [...prev, newItem]);
-    addNotification('Examen planifié', 'SUCCESS');
+    addNotification('Examen planifié', 'SUCCESS', 'ds', newItem.id);
     logAction('CREATION', `Examen: ${item.subject}`);
   };
 
   const updateExam = async (id: string, item: any) => {
+    const existing = exams.find(e => e.id === id);
+    if (!existing) return;
+    if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
+       addNotification("Action non autorisée", "ERROR");
+       logAction('SECURITY', `Tentative modif examen ${id}`, 'CRITICAL');
+       return;
+    }
+
     setExams(prev => prev.map(e => e.id === id ? { ...e, ...item } : e));
-    addNotification('Examen mis à jour', 'SUCCESS');
+    addNotification('Examen mis à jour', 'SUCCESS', 'ds', id);
+    logAction('MODIFICATION', `Examen ID: ${id}`);
   };
 
   const deleteExam = async (id: string) => {
+    const existing = exams.find(e => e.id === id);
+    if (!existing) return;
+    if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
+       addNotification("Action non autorisée", "ERROR");
+       logAction('SECURITY', `Tentative suppression examen ${id}`, 'CRITICAL');
+       return;
+    }
+
     setExams(prev => prev.filter(e => e.id !== id));
     addNotification('Examen supprimé', 'INFO');
+    logAction('SUPPRESSION', `Examen ID: ${id}`, 'WARNING');
   };
 
+  // POLLS
   const addPoll = async (item: any) => {
-    const newItem = { ...item, id: Math.random().toString(36).substr(2, 9), createdAt: new Date().toISOString(), classId: user?.classId };
+    const newItem = { 
+      ...item, 
+      id: Math.random().toString(36).substr(2, 9), 
+      createdAt: new Date().toISOString(), 
+      classId: user?.classId,
+      authorId: user?.id 
+    };
     setPolls(prev => [newItem, ...prev]);
-    addNotification('Sondage publié', 'SUCCESS');
+    addNotification('Sondage publié', 'SUCCESS', 'polls', newItem.id);
     logAction('CREATION', `Sondage: ${item.question}`);
   };
 
   const updatePoll = async (id: string, item: any) => {
+    const existing = polls.find(p => p.id === id);
+    if (!existing) return;
+    // Note: 'active' toggle might be allowed by Admin, but structure editing is Author only
+    if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
+       addNotification("Action non autorisée", "ERROR");
+       logAction('SECURITY', `Tentative modif sondage ${id}`, 'CRITICAL');
+       return;
+    }
+
     setPolls(prev => prev.map(p => p.id === id ? { ...p, ...item } : p));
   };
 
@@ -329,23 +442,30 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const deletePoll = async (id: string) => {
+    const existing = polls.find(p => p.id === id);
+    if (!existing) return;
+    if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
+       addNotification("Action non autorisée", "ERROR");
+       logAction('SECURITY', `Tentative suppression sondage ${id}`, 'CRITICAL');
+       return;
+    }
+
     setPolls(prev => prev.filter(p => p.id !== id));
     addNotification('Sondage supprimé', 'INFO');
+    logAction('SUPPRESSION', `Sondage ID: ${id}`, 'WARNING');
   };
 
-  // --- SHARE FUNCTION (EMAIL) ---
+  // --- SHARE FUNCTION (EMAIL with SendGrid Support) ---
   const shareResource = async (type: 'ANNOUNCEMENT' | 'MEET' | 'EXAM' | 'POLL', item: any) => {
     if (!user) return;
 
     const currentClass = getCurrentClass();
     
     // 1. Déterminer les destinataires
-    // Priorité : Email de la classe (Mailing List) > Liste des emails des élèves > Vide
     let targetEmails = currentClass?.email;
     let recipientLabel = currentClass?.email ? `Mailing List (${currentClass.email})` : 'Membres de la classe';
 
     if (!targetEmails) {
-       // Fallback : Récupérer les emails individuels des étudiants de la classe
        const students = users.filter(u => u.classId === user.classId && u.role === Role.STUDENT);
        const emails = students.map(u => u.email).filter(e => e && e.includes('@')); // Basic validation
        if (emails.length > 0) {
@@ -353,12 +473,17 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
          recipientLabel = `${emails.length} Étudiants`;
        }
     }
+
+    if (!targetEmails) {
+        addNotification("Aucun email destinataire trouvé pour cette classe.", "WARNING");
+        return;
+    }
     
-    // 2. Générer le contenu (Formatage strict avec \r\n pour Outlook/Gmail)
+    // 2. Générer le contenu
     let subject = '';
     let body = '';
-    // Double CRLF for new paragraphs in Outlook
     const footer = `\r\n\r\n--\r\nEnvoyé depuis ${schoolName} - Portail Numérique`;
+    const htmlFooter = `<br><br><hr><em>Envoyé depuis <strong>${schoolName}</strong> - Portail Numérique</em>`;
     
     switch (type) {
       case 'ANNOUNCEMENT':
@@ -380,7 +505,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     }
 
     // 3. Insert into History (Supabase)
-    // On sauvegarde une version HTML (<br>) pour l'affichage Admin, mais on envoie le \r\n
     const bodyForDisplay = body.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
 
     const { error } = await supabase.from('sent_emails').insert([{
@@ -395,35 +519,64 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     if (error) {
       console.error("Erreur enregistrement email:", error);
     } else {
-      // Update local state for immediate feedback
       refreshAllData(); // Reload emails to get the new ID
     }
 
-    addNotification(`Ouverture du mail pour : ${recipientLabel}`, 'SUCCESS');
-    logAction('PARTAGE', `Email envoyé (${type})`);
+    logAction('PARTAGE', `Email initié (${type}) via ${emailConfig.provider}`);
 
-    // 4. Open Mail Client (Real Send)
-    // EncodeURIComponent gère correctement \r\n -> %0D%0A pour les mailto
-    const mailtoLink = `mailto:${targetEmails || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoLink;
+    // 4. Send via Service (Mailto or SendGrid)
+    if (emailConfig.provider === 'SENDGRID') {
+        addNotification(`Envoi via SendGrid en cours vers ${recipientLabel}...`, 'INFO');
+    } else {
+        addNotification(`Ouverture du client mail pour : ${recipientLabel}`, 'SUCCESS');
+    }
+
+    const result = await sendEmail(emailConfig, targetEmails, subject, bodyForDisplay);
+
+    if (result.success) {
+        if (emailConfig.provider === 'SENDGRID') {
+            addNotification("Email envoyé avec succès via SendGrid !", "SUCCESS");
+        }
+    } else {
+        addNotification(`Erreur d'envoi : ${result.error}`, "ERROR");
+        if (emailConfig.provider === 'SENDGRID') {
+            addNotification("Basculement automatique vers le client mail.", "INFO");
+            // Fallback
+            sendEmail({ ...emailConfig, provider: 'MAILTO' }, targetEmails, subject, bodyForDisplay);
+        }
+    }
   };
 
   // --- RESEND FEATURE ---
-  const resendEmail = (email: SentEmail) => {
-    // Reconvert <br> to \r\n for mail client compatibility (Outlook/Gmail)
-    const bodyText = email.body_html.replace(/<br\s*\/?>/gi, '\r\n');
+  const resendEmail = async (email: SentEmail) => {
+    const recipientLabel = email.recipient_email;
     
-    const mailtoLink = `mailto:${email.recipient_email || ''}?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(bodyText)}`;
-    window.location.href = mailtoLink;
+    if (emailConfig.provider === 'SENDGRID') {
+        addNotification(`Renvoi via SendGrid vers ${recipientLabel}...`, 'INFO');
+    } else {
+        addNotification('Client mail ré-ouvert', 'INFO');
+    }
     
-    addNotification('Client mail ré-ouvert', 'INFO');
-    logAction('PARTAGE', `Renvoi email ID: ${email.id}`, 'WARNING');
+    const result = await sendEmail(emailConfig, email.recipient_email, email.subject, email.body_html);
+    
+    if (result.success) {
+        if (emailConfig.provider === 'SENDGRID') {
+            addNotification("Email renvoyé avec succès via SendGrid !", "SUCCESS");
+        }
+    } else {
+        addNotification(`Erreur renvoi : ${result.error}`, "ERROR");
+    }
+    
+    logAction('PARTAGE', `Renvoi email ID: ${email.id} via ${emailConfig.provider}`, 'WARNING');
   };
 
-
   // --- ADMIN ACTIONS (Supabase) ---
-
   const addClass = async (name: string, description: string, email: string) => {
+    if (user?.role !== Role.ADMIN) {
+        addNotification("Action réservée à l'administrateur", "ERROR");
+        return;
+    }
+
     const { error } = await supabase.from('classes').insert([{ 
       name, 
       description,
@@ -439,12 +592,14 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const updateClass = async (id: string, item: Partial<ClassGroup>) => {
-    // Sanitize Payload for Supabase
+    if (user?.role !== Role.ADMIN) {
+        addNotification("Action réservée à l'administrateur", "ERROR");
+        return;
+    }
     const payload: any = {};
     if (item.name !== undefined) payload.name = item.name;
     if (item.description !== undefined) payload.description = item.description;
     if (item.email !== undefined) {
-      // Convert empty string to null for DB compatibility
       payload.email = item.email && item.email.trim() !== '' ? item.email : null;
     }
 
@@ -460,6 +615,10 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const deleteClass = async (id: string) => {
+    if (user?.role !== Role.ADMIN) {
+        addNotification("Action réservée à l'administrateur", "ERROR");
+        return;
+    }
     const { error } = await supabase.from('classes').delete().eq('id', id);
     if (!error) {
        addNotification('Classe supprimée', 'INFO');
@@ -504,6 +663,20 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const updateUser = async (id: string, item: Partial<User>) => {
+    // Security check for User Management
+    const targetUser = users.find(u => u.id === id);
+    if (targetUser && user?.role === Role.RESPONSIBLE) {
+        // A Responsible can only manage users in their class, and cannot manage other Responsibles/Admins
+        if (targetUser.role === Role.ADMIN || targetUser.role === Role.RESPONSIBLE) {
+            addNotification("Action non autorisée sur ce rôle", "ERROR");
+            return;
+        }
+        if (targetUser.classId !== user.classId) {
+            addNotification("Utilisateur hors de votre classe", "ERROR");
+            return;
+        }
+    }
+
     const payload: any = {};
     if (item.name) payload.name = item.name;
     if (item.email) payload.email = item.email;
@@ -523,6 +696,20 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const deleteUser = async (id: string) => {
+    // Security check for User Management
+    const targetUser = users.find(u => u.id === id);
+    if (targetUser && user?.role === Role.RESPONSIBLE) {
+        // A Responsible can only manage users in their class, and cannot delete other Responsibles/Admins
+        if (targetUser.role === Role.ADMIN || targetUser.role === Role.RESPONSIBLE) {
+            addNotification("Action non autorisée sur ce rôle", "ERROR");
+            return;
+        }
+        if (targetUser.classId !== user.classId) {
+            addNotification("Utilisateur hors de votre classe", "ERROR");
+            return;
+        }
+    }
+
     const { error } = await supabase.from('users').delete().eq('id', id);
     if (!error) {
        addNotification('Utilisateur supprimé', 'INFO');
@@ -537,12 +724,13 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     announcements, meets, exams, polls, sentEmails,
     auditLogs, notifications, notificationHistory,
     addNotification, dismissNotification, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, clearNotificationHistory,
+    highlightedItemId, setHighlightedItemId,
     login, logout, getCurrentClass,
     addAnnouncement, updateAnnouncement, deleteAnnouncement,
     addMeet, updateMeet, deleteMeet,
     addExam, updateExam, deleteExam,
     addPoll, updatePoll, votePoll, deletePoll,
-    shareResource, resendEmail,
+    emailConfig, updateEmailConfig, shareResource, resendEmail,
     addClass, updateClass, deleteClass,
     addUser, importUsers, updateUser, deleteUser
   };

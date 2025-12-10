@@ -1,4 +1,5 @@
 
+
 export enum Role {
   ADMIN = 'ADMIN',            // Super Admin (Gère tout)
   RESPONSIBLE = 'RESPONSIBLE', // Responsable de classe (Gère sa classe)
@@ -35,6 +36,7 @@ export interface Announcement {
   urgency: Urgency;
   authorId: string;
   classId: string;
+  durationHours?: number; // Durée de visibilité en heures (optionnel)
 }
 
 export interface MeetSession {
@@ -44,6 +46,7 @@ export interface MeetSession {
   date: string; // ISO string
   teacherName: string;
   classId: string;
+  authorId: string; // ID du créateur
 }
 
 export interface Exam {
@@ -72,6 +75,8 @@ export interface Poll {
   createdAt: string;
   isAnonymous: boolean;
   classId: string;
+  authorId: string; // ID du créateur
+  durationHours?: number; // Durée de visibilité en heures (optionnel)
 }
 
 export interface SentEmail {
@@ -83,6 +88,13 @@ export interface SentEmail {
   resource_type: string;
   sender_name: string;
   class_id: string;
+}
+
+export interface EmailConfig {
+  provider: 'MAILTO' | 'SENDGRID';
+  apiKey?: string;
+  senderEmail?: string;
+  senderName?: string;
 }
 
 // --- SECURITY & UX ---
@@ -103,6 +115,7 @@ export interface Notification {
   type: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING';
   timestamp?: string;
   targetPage?: string; // Page vers laquelle rediriger au clic
+  resourceId?: string; // ID de l'élément spécifique à ouvrir
   read?: boolean; // État de lecture
 }
 

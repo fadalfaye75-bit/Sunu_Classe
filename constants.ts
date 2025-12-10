@@ -41,6 +41,7 @@ export const INITIAL_MEETS: MeetSession[] = [
     link: 'https://meet.google.com/abc-defg-hij',
     date: addHours(new Date(), 1).toISOString(), // Dans 1 heure
     classId: 'c1',
+    authorId: 'u_prof1',
   },
 ];
 
@@ -70,6 +71,7 @@ export const INITIAL_POLLS: Poll[] = [
       { id: 'o2', label: 'Mardi Soir', voterIds: [] },
     ],
     classId: 'c1',
+    authorId: 'u_prof1',
   },
 ];
 

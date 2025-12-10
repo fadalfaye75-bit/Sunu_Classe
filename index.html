@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- SEO & Meta -->
-    <title>SunuClasse - Gestion Scolaire Moderne</title>
-    <meta name="description" content="Plateforme de gestion de classe simplifiée pour étudiants et responsables : Annonces, Sondages, Examens et Meet.">
-    <meta name="theme-color" content="#0EA5E9">
+    <title>Class Connect - Portail Éducatif</title>
+    <meta name="description" content="Plateforme de gestion de classe simplifiée : Annonces, Sondages, Examens et Visio.">
+    <meta name="theme-color" content="#87CEEB">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="SunuClasse - Portail Scolaire">
-    <meta property="og:description" content="Gérez votre vie de classe simplement.">
+    <meta property="og:title" content="Class Connect">
+    <meta property="og:description" content="Connectez, Organisez, Partagez.">
     <meta property="og:image" content="https://images.unsplash.com/photo-1544531586-fde5298cdd40?q=80&w=1200&auto=format&fit=crop">
 
     <!-- Favicon -->
@@ -21,94 +21,91 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
-        darkMode: 'media', // Automatic dark mode based on system preference
+        darkMode: 'media',
         theme: {
           extend: {
+            fontFamily: {
+              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'sans-serif'],
+            },
             colors: {
-              sky: {
-                50: '#f0f9ff',
-                100: '#e0f2fe',
-                200: '#bae6fd',
-                300: '#7dd3fc',
-                400: '#38bdf8',
-                500: '#0ea5e9',
-                600: '#0284c7',
-                700: '#0369a1',
+              brand: {
+                50: '#F0F9FF',  // Surface Light
+                100: '#E0F2FE', // Light Sky
+                200: '#BAE6FD',
+                300: '#7DD3FC',
+                400: '#38BDF8',
+                500: '#0EA5E9', // Primary Button Blue (Accessible on White)
+                600: '#0284C7',
+                700: '#0369A1', // Text branding
                 800: '#075985',
-                900: '#0c4a6e',
-                950: '#082f49',
+                900: '#0C4A6E', // Deep Ocean text
+                pastel: '#87CEEB', // ** Main Identity Color (#87CEEB) **
+                accent: '#2DD4BF', // Turquoise touches
+              },
+              surface: {
+                50: '#F8FAFC', // Main Background (Very light gray/blue)
+                100: '#F1F5F9',
+                200: '#E2E8F0',
+                300: '#CBD5E1',
               }
+            },
+            boxShadow: {
+              'glass': '0 8px 32px 0 rgba(135, 206, 235, 0.15)', // Sky blue tint
+              'premium': '0 20px 40px -10px rgba(12, 74, 110, 0.08)',
+              'card': '0 4px 6px -1px rgba(135, 206, 235, 0.1), 0 2px 4px -1px rgba(135, 206, 235, 0.06)',
+              'glow': '0 0 20px rgba(135, 206, 235, 0.4)',
+            },
+            borderRadius: {
+              '3xl': '1.5rem',
+              '4xl': '2rem',
+              '5xl': '2.5rem',
             }
           }
         }
-      }
+      };
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
       body {
-        font-family: 'Inter', sans-serif;
-        background-color: #F8FAFC; /* Slate 50 */
-        color: #0F172A; /* Slate 900 */
-        transition: background-color 0.3s, color 0.3s;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #F8FAFC; 
+        color: #334155; 
+        -webkit-font-smoothing: antialiased;
       }
 
-      /* Dark mode body overrides */
-      @media (prefers-color-scheme: dark) {
-        body {
-          background-color: #020617; /* Slate 950 */
-          color: #F1F5F9; /* Slate 100 */
-        }
-      }
-      
-      /* Modern Tech Pattern */
-      .pattern-tech {
-        background-color: #0EA5E9;
-        background-image: 
-          radial-gradient(at 0% 0%, rgba(255,255,255,0.15) 0px, transparent 50%),
-          radial-gradient(at 100% 100%, rgba(255,255,255,0.15) 0px, transparent 50%);
+      /* Premium Scrollbar */
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #87CEEB; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #0EA5E9; }
+
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.8);
       }
 
       .btn-primary {
-        background-image: linear-gradient(135deg, #0EA5E9, #0284C7);
-        box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3);
-        transition: all 0.2s ease-in-out;
+        background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%);
+        color: white;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.39);
       }
-      
       .btn-primary:hover {
-        background-image: linear-gradient(135deg, #38BDF8, #0284C7);
-        box-shadow: 0 6px 15px rgba(14, 165, 233, 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
       }
-      
       .btn-primary:active {
-        transform: translateY(2px);
-        box-shadow: 0 2px 5px rgba(14, 165, 233, 0.3);
+        transform: translateY(0);
       }
 
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
+      .card-hover {
+        transition: all 0.3s ease-out;
       }
-      ::-webkit-scrollbar-track {
-        background: #F1F5F9; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #94A3B8; 
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #64748B; 
-      }
-
-      @media (prefers-color-scheme: dark) {
-        ::-webkit-scrollbar-track {
-          background: #0F172A; 
-        }
-        ::-webkit-scrollbar-thumb {
-          background: #334155; 
-        }
-        ::-webkit-scrollbar-thumb:hover {
-          background: #475569; 
-        }
+      .card-hover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 15px 30px rgba(135, 206, 235, 0.2); /* Sky blue shadow */
       }
     </style>
 <script type="importmap">
@@ -132,5 +129,9 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+      // Defensive semicolon to prevent concatenation issues
+      ;
+    </script>
   </body>
 </html>

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -12,19 +13,22 @@ import {
   UserCircle,
   School,
   Settings,
+  Bell,
+  Pencil,
+  Upload,
   CheckCircle,
   AlertCircle,
   AlertTriangle,
   Info,
-  Bell,
-  Trash2,
-  Clock,
+  ChevronRight,
+  Github,
+  Twitter,
+  Globe,
+  Home,
+  User as UserIcon,
   ArrowLeft,
-  Upload,
-  Pencil,
-  Check,
-  Archive,
-  GraduationCap
+  Trash2,
+  Lock
 } from 'lucide-react';
 import { Role, Notification } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -37,69 +41,47 @@ interface LayoutProps {
   onNavigate: (page: string) => void;
 }
 
-// Preset avatars (SunuClasse Themed)
 const AVATAR_PRESETS = [
   '👨‍🎓', '👩‍🎓', '👨‍🏫', '👩‍🏫', '🦁', '🦅', '🐘', '🌍', '☀️', '📚', '⚽', '💻', '🚀', '🎨', '🎵', '🇸🇳'
 ];
 
-// UCAD Logo URL
 const LOGO_UCAD = "https://upload.wikimedia.org/wikipedia/fr/4/43/Logo_UCAD.png";
 
 export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) => {
   const { 
     user, 
     logout, 
-    getCurrentClass, 
     schoolName, 
     notifications, 
     dismissNotification, 
     notificationHistory, 
-    clearNotificationHistory, 
+    deleteNotification,
     updateUser,
     markNotificationAsRead,
     markAllNotificationsAsRead,
-    deleteNotification 
+    setHighlightedItemId,
+    addNotification
   } = useApp();
+  
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotifMenuOpen, setIsNotifMenuOpen] = useState(false);
-  
-  // Time State (Dakar)
-  const [dakarTime, setDakarTime] = useState("");
-  
-  // Profile Modal State
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Logo Error State
   const [logoError, setLogoError] = useState(false);
 
-  const currentClass = getCurrentClass();
+  // Password Change State
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
 
-  // Update clock every second (Dakar TimeZone)
-  useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      // Force Timezone to Africa/Dakar (GMT)
-      const timeString = now.toLocaleTimeString('fr-SN', {
-        timeZone: 'Africa/Dakar',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      setDakarTime(timeString);
-    };
-
-    updateClock(); // Initial call
-    const timer = setInterval(updateClock, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
+  // Navigation Items (Desktop Sidebar)
   const navItems = [
-    { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
+    { id: 'dashboard', label: 'Aperçu', icon: LayoutDashboard, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
     { id: 'infos', label: 'Annonces', icon: Megaphone, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
-    { id: 'meet', label: 'Visio / Meet', icon: Video, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
-    { id: 'ds', label: 'Examens (DS)', icon: CalendarDays, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
+    { id: 'meet', label: 'Visio', icon: Video, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
+    { id: 'ds', label: 'Examens', icon: CalendarDays, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
     { id: 'polls', label: 'Sondages', icon: Vote, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
-    { id: 'admin', label: user?.role === Role.ADMIN ? 'Administration' : 'Gestion Classe', icon: Settings, roles: [Role.ADMIN, Role.RESPONSIBLE] },
+    { id: 'admin', label: 'Réglages', icon: Settings, roles: [Role.ADMIN, Role.RESPONSIBLE] },
   ];
 
   const handleNav = (id: string) => {
@@ -107,37 +89,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     setIsMobileMenuOpen(false);
   };
 
-  const handleNotificationClick = (notif: Notification) => {
-    markNotificationAsRead(notif.id);
-    if (notif.targetPage) {
-      onNavigate(notif.targetPage);
-      setIsNotifMenuOpen(false);
-    }
-  };
-
-  const getRoleLabel = () => {
-    switch(user?.role) {
-      case Role.ADMIN: return 'Administrateur';
-      case Role.RESPONSIBLE: return 'Responsable';
-      case Role.STUDENT: return 'Étudiant';
-      default: return '';
-    }
-  };
-
   const filteredNavItems = navItems.filter(item => user && item.roles.includes(user.role));
-
   const unreadCount = notificationHistory.filter(n => !n.read).length;
 
-  const BackButton = ({ mobile = false }) => {
-    if (currentPage === 'dashboard') return null;
-    return (
-      <button 
-        onClick={() => onNavigate('dashboard')} 
-        className={`${mobile ? 'mr-3 p-1 text-sky-100 hover:text-white' : 'mr-4 p-2 bg-sky-50 text-sky-600 hover:bg-sky-100 rounded-xl transition shadow-sm'}`}
-      >
-        <ArrowLeft className={`${mobile ? 'w-6 h-6' : 'w-5 h-5'}`} />
-      </button>
-    );
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && user) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateUser(user.id, { avatar: reader.result as string });
+        setIsProfileModalOpen(false);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleAvatarSelect = (preset: string) => {
@@ -147,429 +111,427 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && user) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        updateUser(user.id, { avatar: base64String });
-        setIsProfileModalOpen(false);
-      };
-      reader.readAsDataURL(file);
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 4) {
+      addNotification("Le mot de passe est trop court.", "ERROR");
+      return;
     }
+    if (newPassword !== confirmPassword) {
+      addNotification("Les mots de passe ne correspondent pas.", "ERROR");
+      return;
+    }
+    // Simulation du changement de mot de passe
+    addNotification("Mot de passe modifié avec succès !", "SUCCESS");
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPasswordChange(false);
   };
 
+  const handleNotificationClick = (notif: Notification) => {
+    markNotificationAsRead(notif.id);
+    if (notif.targetPage) {
+       onNavigate(notif.targetPage);
+       if (notif.resourceId) {
+         setHighlightedItemId(notif.resourceId);
+       }
+    }
+    setIsNotifMenuOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isProfileModalOpen) {
+      // Reset form when modal closes
+      setShowPasswordChange(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    }
+  }, [isProfileModalOpen]);
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-surface-50 dark:bg-slate-950 flex flex-col md:flex-row font-sans text-slate-700 transition-colors duration-500">
       
-      {/* --- Notification Toast Container --- */}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 pointer-events-none">
+      {/* --- TOAST NOTIFICATIONS (Floating Top Center) --- */}
+      <div className="fixed top-20 md:top-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-3 w-[90%] md:w-full md:max-w-md px-4 pointer-events-none">
         {notifications.map((notif) => (
           <div 
             key={notif.id}
-            className={`
-              pointer-events-auto transform transition-all duration-300 ease-in-out hover:scale-102 cursor-pointer
-              max-w-sm w-full shadow-lg rounded-xl border-l-4 p-4 flex items-start gap-3 bg-white dark:bg-slate-900
-              ${notif.type === 'SUCCESS' ? 'border-emerald-500 shadow-emerald-500/10' : 
-                notif.type === 'ERROR' ? 'border-red-500 shadow-red-500/10' : 
-                notif.type === 'WARNING' ? 'border-orange-500 shadow-orange-500/10' : 
-                'border-sky-500 shadow-sky-500/10'}
-            `}
             onClick={() => {
-              if (notif.targetPage) onNavigate(notif.targetPage);
               dismissNotification(notif.id);
+              if (notif.targetPage) {
+                onNavigate(notif.targetPage);
+                if (notif.resourceId) setHighlightedItemId(notif.resourceId);
+              }
             }}
+            className="pointer-events-auto bg-white/95 dark:bg-slate-800/95 backdrop-blur-md shadow-premium rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:scale-[1.02] transition-transform animate-in slide-in-from-top-4 duration-300 ring-1 ring-black/5 border-l-4 border-brand-pastel"
           >
-             {notif.type === 'SUCCESS' && <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />}
-             {notif.type === 'ERROR' && <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />}
-             {notif.type === 'WARNING' && <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0" />}
-             {notif.type === 'INFO' && <Info className="w-5 h-5 text-sky-500 shrink-0" />}
-             <div className="flex-1">
-               <h4 className={`font-bold text-sm
-                 ${notif.type === 'SUCCESS' ? 'text-emerald-700 dark:text-emerald-400' : 
-                   notif.type === 'ERROR' ? 'text-red-700 dark:text-red-400' : 
-                   notif.type === 'WARNING' ? 'text-orange-700 dark:text-orange-400' : 
-                   'text-sky-700 dark:text-sky-400'}
-               `}>
-                 {notif.type === 'SUCCESS' ? 'Succès' : notif.type === 'ERROR' ? 'Erreur' : notif.type === 'WARNING' ? 'Attention' : 'Information'}
-               </h4>
-               <p className="text-slate-600 dark:text-slate-300 text-sm mt-0.5">{notif.message}</p>
+             <div className={`p-2 rounded-full shrink-0 ${
+               notif.type === 'SUCCESS' ? 'bg-emerald-100 text-emerald-600' : 
+               notif.type === 'ERROR' ? 'bg-red-100 text-red-600' : 
+               notif.type === 'WARNING' ? 'bg-orange-100 text-orange-600' : 
+               'bg-brand-100 text-brand-600'
+             }`}>
+               {notif.type === 'SUCCESS' && <CheckCircle className="w-5 h-5" />}
+               {notif.type === 'ERROR' && <AlertCircle className="w-5 h-5" />}
+               {notif.type === 'WARNING' && <AlertTriangle className="w-5 h-5" />}
+               {notif.type === 'INFO' && <Info className="w-5 h-5" />}
              </div>
-             <button onClick={(e) => { e.stopPropagation(); dismissNotification(notif.id); }} className="ml-auto text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-               <X className="w-4 h-4" />
+             <div className="flex-1">
+               <p className="font-semibold text-sm text-slate-800 dark:text-white">{notif.message}</p>
+             </div>
+             <button 
+                onClick={(e) => { e.stopPropagation(); dismissNotification(notif.id); }} 
+                className="text-slate-400 hover:text-slate-600"
+             >
+                <X className="w-4 h-4" />
              </button>
           </div>
         ))}
       </div>
 
-      {/* Mobile Header */}
-      <div className="md:hidden bg-gradient-to-r from-sky-600 to-sky-700 text-white p-4 flex justify-between items-center shadow-md z-50 sticky top-0">
-        <div className="flex items-center">
-          <BackButton mobile />
-          <div className="font-bold text-lg flex items-center gap-2">
-            {currentPage === 'dashboard' && (
-              <div className="bg-white rounded-full p-0.5 w-8 h-8 flex items-center justify-center overflow-hidden shrink-0">
-                {logoError ? (
-                  <School className="w-5 h-5 text-sky-600" />
-                ) : (
-                  <img 
-                    src={LOGO_UCAD} 
-                    alt="Logo" 
-                    className="w-full h-full object-contain" 
-                    referrerPolicy="no-referrer"
-                    onError={() => setLogoError(true)}
-                  />
-                )}
-              </div>
-            )}
-            <span>{schoolName}</span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <button onClick={() => setIsNotifMenuOpen(!isNotifMenuOpen)} className="relative text-sky-100 hover:text-white transition">
-            <Bell className="w-6 h-6" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-sky-600">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white hover:bg-white/10 p-1 rounded transition">
-            {isMobileMenuOpen ? <X /> : <Menu />}
-          </button>
-        </div>
-
-        {/* Mobile Notification Dropdown */}
-        {isNotifMenuOpen && (
-          <div className="absolute top-full left-0 right-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xl max-h-[60vh] overflow-y-auto z-[60]">
-             <div className="p-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase text-xs">Notifications</h4>
-                <div className="flex gap-2">
-                  {unreadCount > 0 && (
-                    <button onClick={markAllNotificationsAsRead} className="text-xs text-sky-600 dark:text-sky-400 font-medium flex items-center gap-1 hover:underline">
-                      <Check className="w-3 h-3" /> Tout lire
-                    </button>
-                  )}
-                  {notificationHistory.length > 0 && (
-                    <button onClick={clearNotificationHistory} className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1 hover:underline">
-                      <Trash2 className="w-3 h-3" /> Effacer
-                    </button>
-                  )}
-                </div>
-             </div>
-             <div>
-                {notificationHistory.length === 0 ? (
-                  <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-sm">Aucune notification récente.</div>
-                ) : (
-                  notificationHistory.map(notif => (
-                    <div 
-                      key={notif.id} 
-                      className={`p-4 border-b border-slate-100 dark:border-slate-800 flex gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition relative group ${!notif.read ? 'bg-sky-50 dark:bg-sky-900/10' : 'bg-white dark:bg-slate-900'}`}
-                    >
-                       <div 
-                         onClick={() => handleNotificationClick(notif)}
-                         className={`flex-1 flex gap-3 cursor-pointer`}
-                       >
-                         <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
-                            notif.type === 'SUCCESS' ? 'bg-emerald-500' : 
-                            notif.type === 'ERROR' ? 'bg-red-500' : 
-                            notif.type === 'WARNING' ? 'bg-orange-500' : 'bg-sky-500'
-                         }`} />
-                         <div className="flex-1">
-                            <p className={`text-slate-800 dark:text-slate-200 text-sm leading-tight pr-6 ${!notif.read ? 'font-semibold' : 'font-normal text-slate-600'}`}>
-                              {notif.message}
-                            </p>
-                            <p className="text-slate-400 dark:text-slate-500 text-xs mt-1 flex items-center gap-1">
-                               <Clock className="w-3 h-3" /> {notif.timestamp ? formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true, locale: fr }) : 'À l\'instant'}
-                            </p>
-                         </div>
-                       </div>
-                       
-                       <button 
-                         onClick={(e) => { e.stopPropagation(); deleteNotification(notif.id); }}
-                         className="absolute top-2 right-2 p-2 text-slate-300 hover:text-red-500 opacity-100 md:opacity-0 group-hover:opacity-100 transition"
-                       >
-                          <Archive className="w-4 h-4" />
-                       </button>
-                    </div>
-                  ))
-                )}
-             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Sidebar Navigation */}
-      <div className={`
-        fixed inset-y-0 left-0 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:relative md:translate-x-0 transition duration-300 ease-in-out
-        bg-slate-900 dark:bg-slate-950 w-64 shadow-xl z-40 flex flex-col border-r border-slate-800
-      `}>
-        {/* Sidebar Header */}
-        <div className="p-6 text-white hidden md:block border-b border-slate-800 bg-slate-950">
-           <div className="flex items-center gap-3">
-             <div className="bg-white p-1 rounded-full w-10 h-10 flex items-center justify-center overflow-hidden shrink-0">
-               {logoError ? (
-                  <School className="w-6 h-6 text-sky-600" />
-               ) : (
-                  <img 
-                    src={LOGO_UCAD} 
-                    alt="Logo UCAD" 
-                    className="w-full h-full object-contain" 
-                    referrerPolicy="no-referrer"
-                    onError={() => setLogoError(true)}
-                  />
-               )}
-             </div>
-             <div>
-               <h1 className="text-xl font-bold tracking-tight text-white">
-                 {schoolName}
-               </h1>
-               <p className="text-sky-400 text-xs mt-0.5 font-medium uppercase tracking-wide">{currentClass ? currentClass.name : 'Portail'}</p>
-             </div>
-           </div>
-        </div>
-
-        {/* Mobile User Info */}
-        <div className="p-4 md:hidden bg-slate-800 border-b border-slate-700 cursor-pointer" onClick={() => setIsProfileModalOpen(true)}>
-           <div className="flex items-center gap-3">
-              <UserAvatar user={user} size="md" />
-              <div>
-                <p className="font-bold text-white">{user?.name}</p>
-                <div className="flex items-center gap-1">
-                  <p className="text-xs text-sky-300">{getRoleLabel()}</p>
-                  <Pencil className="w-3 h-3 text-sky-400 opacity-60" />
-                </div>
-              </div>
-           </div>
-        </div>
-
-        <nav className="flex-1 py-6 space-y-1 px-3">
-          {filteredNavItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleNav(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
-                currentPage === item.id
-                  ? 'bg-sky-600 text-white shadow-md shadow-sky-900/20'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <item.icon className={`w-5 h-5 ${currentPage === item.id ? 'text-white' : 'group-hover:text-white text-slate-500'}`} />
-              <span className="font-medium text-sm">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        {/* Desktop User Info Bottom */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950">
-           <div 
-             className="hidden md:flex items-center gap-3 mb-3 px-2 cursor-pointer hover:bg-slate-900 p-2 rounded-lg transition group"
-             onClick={() => setIsProfileModalOpen(true)}
+      {/* --- MOBILE HEADER (Clean & Centered) --- */}
+      <div className="md:hidden bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50 px-4 h-[60px] flex items-center justify-between shadow-sm">
+         {/* Left: Hamburger OR Back Button */}
+         {currentPage === 'dashboard' ? (
+           <button 
+             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+             className="p-2 -ml-2 text-slate-600 hover:bg-slate-50 rounded-full transition"
            >
-              <div className="relative">
-                <UserAvatar user={user} size="sm" className="ring-2 ring-slate-700 group-hover:ring-sky-500 transition" />
-                <div className="absolute -bottom-1 -right-1 bg-sky-500 rounded-full p-0.5 text-white opacity-0 group-hover:opacity-100 transition">
-                   <Pencil className="w-2 h-2" />
-                </div>
-              </div>
-              <div className="overflow-hidden">
-                <p className="font-medium text-sm text-white truncate">{user?.name}</p>
-                <p className="text-xs text-slate-400 truncate">{getRoleLabel()}</p>
-              </div>
-           </div>
-          <button
-            onClick={logout}
-            className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-red-400 hover:bg-slate-900 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Déconnexion</span>
-          </button>
-        </div>
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+           </button>
+         ) : (
+           <button 
+             onClick={() => onNavigate('dashboard')} 
+             className="p-2 -ml-2 text-slate-600 hover:bg-slate-50 rounded-full transition"
+           >
+              <ArrowLeft className="w-6 h-6" />
+           </button>
+         )}
+
+         {/* Center: Logo */}
+         <div className="flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-brand-500">
+              {logoError ? <School className="w-5 h-5 text-[#87CEEB]" /> : <img src={LOGO_UCAD} className="w-full h-full object-contain" onError={() => setLogoError(true)} />}
+            </div>
+            <span className="font-bold text-lg text-slate-800 tracking-tight">Class Connect</span>
+         </div>
+
+         {/* Right: Notifications */}
+         <button onClick={() => setIsNotifMenuOpen(!isNotifMenuOpen)} className="p-2 -mr-2 relative text-slate-600 hover:bg-slate-50 rounded-full transition">
+            <Bell className="w-6 h-6" />
+            {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-[#87CEEB] rounded-full ring-2 ring-white"></span>}
+         </button>
       </div>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden h-screen bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300">
-        
-        {/* Desktop Header */}
-        <header className="hidden md:flex bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 h-20 items-center justify-between px-8 shadow-sm z-30 sticky top-0">
-           <div className="flex items-center gap-4">
-             <BackButton />
-             <div>
-               <h2 className="font-bold text-2xl text-slate-800 dark:text-white tracking-tight">
-                 {user?.role === Role.ADMIN ? 'Espace Administration' : (currentClass?.name || 'Tableau de bord')}
-               </h2>
-               
-               <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 text-sm">
-                  <span>Année 2025-2026</span>
-                  <span className="w-1 h-1 bg-slate-300 dark:bg-slate-600 rounded-full"></span>
-                  <span className="flex items-center gap-1.5 text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-900/30 px-2 py-0.5 rounded text-xs font-semibold border border-sky-100 dark:border-sky-800">
-                     <Clock className="w-3 h-3" />
-                     {dakarTime} <span className="opacity-70 ml-1">GMT</span>
-                  </span>
+      {/* --- SIDEBAR (Desktop) / DRAWER (Mobile) --- */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-40 w-72 transform transition-transform duration-300 ease-out bg-white
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:relative md:translate-x-0 md:w-[280px] md:flex md:flex-col
+        md:bg-transparent md:h-screen
+      `}>
+        <div className="h-full md:p-4 flex flex-col">
+          {/* Sidebar Container */}
+          <div className="flex-1 bg-white md:bg-white/90 md:backdrop-blur-xl md:shadow-premium md:rounded-[2rem] border-r md:border border-slate-100 flex flex-col overflow-hidden relative h-full">
+             
+             {/* Brand (Desktop only) */}
+             <div className="hidden md:flex p-8 pb-4 items-center gap-4 border-b border-slate-50/50">
+                <div className="w-12 h-12 bg-brand-pastel/20 rounded-2xl flex items-center justify-center p-1 border border-brand-pastel/30 shadow-sm">
+                   {logoError ? <School className="w-7 h-7 text-[#87CEEB]" /> : <img src={LOGO_UCAD} className="w-full h-full object-contain" onError={() => setLogoError(true)} />}
+                </div>
+                <div>
+                   <h1 className="font-extrabold text-lg text-slate-800 leading-none tracking-tight">Class Connect</h1>
+                   <p className="text-xs text-[#87CEEB] font-bold mt-1.5 uppercase tracking-wider flex items-center gap-1">
+                     <span className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse"></span>
+                     En Ligne
+                   </p>
+                </div>
+             </div>
+
+             {/* Mobile Drawer Header */}
+             <div className="md:hidden p-6 border-b border-slate-100 flex items-center gap-4 mt-14 bg-slate-50">
+               <UserAvatar user={user} size="lg" className="ring-4 ring-white shadow-sm" />
+               <div>
+                  <h2 className="font-bold text-lg text-slate-800">{user?.name}</h2>
+                  <p className="text-sm text-[#87CEEB] font-medium uppercase tracking-wide">{user?.role}</p>
                </div>
              </div>
-           </div>
-           
-           <div className="flex items-center gap-6">
-              {/* Notification Bell Desktop */}
-              <div className="relative">
-                <button onClick={() => setIsNotifMenuOpen(!isNotifMenuOpen)} className="p-2.5 rounded-full text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition relative">
-                  <Bell className="w-6 h-6" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
+
+             {/* Nav Links */}
+             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Menu Principal</p>
+                {filteredNavItems.map((item) => {
+                  const isActive = currentPage === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNav(item.id)}
+                      className={`
+                        w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative
+                        ${isActive 
+                          ? 'bg-[#87CEEB]/15 text-[#0369A1] shadow-sm border border-[#87CEEB]/20' 
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                        }
+                      `}
+                    >
+                      {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#87CEEB] rounded-r-full"></div>}
+                      <item.icon className={`w-5 h-5 ${isActive ? 'text-[#0EA5E9]' : 'text-slate-400 group-hover:text-slate-600'} transition-colors`} strokeWidth={isActive ? 2.5 : 2} />
+                      <span className={`text-[14px] ${isActive ? 'font-bold' : 'font-medium'}`}>{item.label}</span>
+                      {isActive && <ChevronRight className="w-4 h-4 ml-auto text-[#7DD3FC]" />}
+                    </button>
+                  );
+                })}
+             </nav>
+
+             {/* User Profile Footer (Desktop) */}
+             <div className="hidden md:block p-4 mt-auto border-t border-slate-50">
+                <div 
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="flex items-center gap-3 p-3 rounded-2xl bg-surface-50 border border-slate-100 hover:bg-white hover:shadow-md transition-all cursor-pointer group"
+                >
+                   <UserAvatar user={user} size="sm" className="ring-2 ring-white shadow-sm" />
+                   <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">{user?.name}</p>
+                      <p className="text-[10px] text-[#87CEEB] font-medium truncate uppercase tracking-wide bg-[#87CEEB]/10 inline-block px-1.5 py-0.5 rounded-md mt-0.5">
+                        {user?.role}
+                      </p>
+                   </div>
+                   <Settings className="w-4 h-4 text-slate-300 group-hover:text-[#87CEEB] transition" />
+                </div>
+                <button 
+                  onClick={logout}
+                  className="w-full mt-3 flex items-center justify-center gap-2 text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-600 p-3 rounded-xl transition border border-transparent hover:border-red-100"
+                >
+                  <LogOut className="w-4 h-4" /> Déconnexion
                 </button>
-                
-                {/* Desktop Notification Dropdown */}
-                {isNotifMenuOpen && (
-                  <div className="absolute top-full right-0 mt-3 w-80 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden z-[60] origin-top-right ring-1 ring-black/5">
-                     <div className="p-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                        <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase text-xs tracking-wide">Notifications</h4>
-                        <div className="flex gap-2">
-                           {unreadCount > 0 && (
-                             <button onClick={markAllNotificationsAsRead} className="text-xs text-sky-600 dark:text-sky-400 font-medium hover:bg-sky-50 dark:hover:bg-sky-900/30 px-2 py-1 rounded transition">
-                               Tout lire
-                             </button>
-                           )}
-                           {notificationHistory.length > 0 && (
-                             <button onClick={clearNotificationHistory} className="text-xs text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded transition">
-                               Effacer
-                             </button>
-                           )}
-                        </div>
-                     </div>
-                     <div className="max-h-[400px] overflow-y-auto">
-                        {notificationHistory.length === 0 ? (
-                          <div className="p-8 text-center flex flex-col items-center text-slate-400">
-                            <Bell className="w-8 h-8 mb-2 opacity-20" />
-                            <span className="text-sm font-medium">Rien à signaler</span>
-                          </div>
-                        ) : (
-                          notificationHistory.map(notif => (
-                            <div 
-                              key={notif.id} 
-                              className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex gap-3 relative group ${!notif.read ? 'bg-sky-50/50 dark:bg-sky-900/10' : ''}`}
-                            >
-                               <div 
-                                 className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
-                                    notif.type === 'SUCCESS' ? 'bg-emerald-500' : 
-                                    notif.type === 'ERROR' ? 'bg-red-500' : 
-                                    notif.type === 'WARNING' ? 'bg-orange-500' : 'bg-sky-500'
-                                 }`} 
-                               />
-                               
-                               <div 
-                                 onClick={() => handleNotificationClick(notif)}
-                                 className={`flex-1 ${notif.targetPage ? 'cursor-pointer' : ''}`}
-                               >
-                                  <p className={`text-slate-800 dark:text-slate-200 text-sm leading-snug pr-6 ${!notif.read ? 'font-semibold' : 'font-normal text-slate-600'}`}>
-                                    {notif.message}
-                                  </p>
-                                  <p className="text-slate-400 text-[10px] mt-1 font-medium">
-                                    {notif.timestamp ? formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true, locale: fr }) : 'Récent'}
-                                  </p>
-                               </div>
+             </div>
 
-                               <button 
-                                 onClick={(e) => { e.stopPropagation(); deleteNotification(notif.id); }}
-                                 className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg opacity-0 group-hover:opacity-100 transition"
-                               >
-                                  <Archive className="w-4 h-4" />
-                               </button>
-                            </div>
-                          ))
-                        )}
-                     </div>
-                  </div>
-                )}
-              </div>
-
-              <span className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider
-                ${user?.role === Role.ADMIN ? 'bg-red-100 text-red-700 border border-red-200' : 
-                  user?.role === Role.RESPONSIBLE ? 'bg-purple-100 text-purple-700 border border-purple-200' : 
-                  'bg-sky-100 text-sky-700 border border-sky-200'}`}>
-                {getRoleLabel()}
-              </span>
-           </div>
-        </header>
-
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
-           {children}
+             {/* Mobile Drawer Footer */}
+             <div className="md:hidden p-4 border-t border-slate-100">
+               <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 bg-red-50 font-bold">
+                 <LogOut className="w-5 h-5" /> Déconnexion
+               </button>
+             </div>
+          </div>
         </div>
+      </aside>
+
+      {/* --- BOTTOM NAVIGATION BAR (Mobile Only) --- */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-2 pb-[env(safe-area-inset-bottom)] z-40 flex justify-between items-center shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+         <button 
+           onClick={() => onNavigate('dashboard')} 
+           className={`flex flex-col items-center gap-1 p-2 rounded-xl transition ${currentPage === 'dashboard' ? 'text-[#87CEEB]' : 'text-slate-400'}`}
+         >
+           <Home className={`w-6 h-6 ${currentPage === 'dashboard' ? 'fill-current' : ''}`} strokeWidth={2} />
+           <span className="text-[10px] font-bold">Accueil</span>
+         </button>
+         
+         <button 
+           onClick={() => onNavigate('infos')} 
+           className={`flex flex-col items-center gap-1 p-2 rounded-xl transition ${currentPage === 'infos' ? 'text-[#87CEEB]' : 'text-slate-400'}`}
+         >
+           <Megaphone className={`w-6 h-6 ${currentPage === 'infos' ? 'fill-current' : ''}`} strokeWidth={2} />
+           <span className="text-[10px] font-bold">Annonces</span>
+         </button>
+
+         <button 
+           onClick={() => onNavigate('ds')} 
+           className={`flex flex-col items-center gap-1 p-2 rounded-xl transition ${currentPage === 'ds' ? 'text-[#87CEEB]' : 'text-slate-400'}`}
+         >
+           <CalendarDays className={`w-6 h-6 ${currentPage === 'ds' ? 'fill-current' : ''}`} strokeWidth={2} />
+           <span className="text-[10px] font-bold">DS</span>
+         </button>
+
+         <button 
+           onClick={() => onNavigate('meet')} 
+           className={`flex flex-col items-center gap-1 p-2 rounded-xl transition ${currentPage === 'meet' ? 'text-[#87CEEB]' : 'text-slate-400'}`}
+         >
+           <Video className={`w-6 h-6 ${currentPage === 'meet' ? 'fill-current' : ''}`} strokeWidth={2} />
+           <span className="text-[10px] font-bold">Meet</span>
+         </button>
+
+         <button 
+           onClick={() => setIsProfileModalOpen(true)} 
+           className={`flex flex-col items-center gap-1 p-2 rounded-xl transition ${isProfileModalOpen ? 'text-[#87CEEB]' : 'text-slate-400'}`}
+         >
+           <UserIcon className={`w-6 h-6 ${isProfileModalOpen ? 'fill-current' : ''}`} strokeWidth={2} />
+           <span className="text-[10px] font-bold">Profil</span>
+         </button>
+      </nav>
+
+      {/* --- MAIN CONTENT --- */}
+      <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden relative scroll-smooth bg-surface-50 flex flex-col pt-4 md:pt-0 pb-20 md:pb-0">
+         
+         {/* Desktop Header */}
+         <header className="hidden md:flex items-center justify-between px-8 py-6 sticky top-0 z-30 pointer-events-none">
+            <div className="pointer-events-auto"></div> 
+            
+            <div className="flex items-center gap-4 pointer-events-auto bg-white/80 backdrop-blur-xl p-2 rounded-full border border-white/60 shadow-glass">
+               <button 
+                  onClick={() => setIsNotifMenuOpen(!isNotifMenuOpen)}
+                  className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white transition relative text-slate-600 hover:text-brand-500"
+               >
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>}
+               </button>
+               <div className="w-px h-4 bg-slate-200"></div>
+               <div className="flex items-center gap-2 pr-2">
+                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wide px-2">{user?.role}</span>
+               </div>
+            </div>
+
+            {/* Notifications Dropdown */}
+            {isNotifMenuOpen && (
+               <div className="absolute top-20 right-8 w-80 bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden pointer-events-auto animate-in fade-in zoom-in-95 origin-top-right z-50">
+                  <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-brand-pastel/20">
+                     <h3 className="font-bold text-sm text-brand-900">Notifications</h3>
+                     <button onClick={markAllNotificationsAsRead} className="text-xs text-brand-700 font-bold hover:underline">Tout lire</button>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                     {notificationHistory.length === 0 ? (
+                        <div className="p-8 text-center text-slate-400 text-sm">Rien à signaler.</div>
+                     ) : (
+                        notificationHistory.map(n => (
+                           <div 
+                              key={n.id} 
+                              onClick={() => handleNotificationClick(n)}
+                              className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition cursor-pointer flex gap-3 group relative ${!n.read ? 'bg-brand-pastel/10' : ''}`}
+                           >
+                              <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${!n.read ? 'bg-brand-500' : 'bg-transparent'}`}></div>
+                              <div className="flex-1 pr-6">
+                                <p className="text-sm text-slate-700 leading-snug">{n.message}</p>
+                                <p className="text-[10px] text-slate-400 mt-1 font-medium">{formatDistanceToNow(new Date(n.timestamp || Date.now()), { addSuffix: true, locale: fr })}</p>
+                              </div>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
+                                className="absolute right-2 top-2 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                                title="Supprimer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                           </div>
+                        ))
+                     )}
+                  </div>
+               </div>
+            )}
+         </header>
+
+         {/* Page Content Injection */}
+         <div className="px-4 md:px-10 pb-4 max-w-7xl mx-auto w-full flex-grow">
+            {children}
+         </div>
+
+         {/* --- FOOTER (Hidden on Mobile due to Bottom Nav) --- */}
+         <footer className="hidden md:block mt-auto border-t border-slate-200 bg-white/50 backdrop-blur-sm py-8 px-8">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+               <div className="flex items-center gap-3">
+                  <School className="w-5 h-5 text-brand-pastel" />
+                  <span className="text-sm font-bold text-slate-600">Class Connect © 2025</span>
+               </div>
+               
+               <div className="flex items-center gap-4">
+                  <a href="#" className="p-2 rounded-full bg-slate-100 hover:bg-brand-pastel/20 hover:text-brand-600 transition"><Twitter className="w-4 h-4"/></a>
+                  <a href="#" className="p-2 rounded-full bg-slate-100 hover:bg-brand-pastel/20 hover:text-brand-600 transition"><Github className="w-4 h-4"/></a>
+                  <a href="#" className="p-2 rounded-full bg-slate-100 hover:bg-brand-pastel/20 hover:text-brand-600 transition"><Globe className="w-4 h-4"/></a>
+               </div>
+            </div>
+         </footer>
+
       </main>
 
-      {/* --- Profile Avatar Modal --- */}
+      {/* --- PROFILE MODAL --- */}
       {isProfileModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden ring-1 ring-slate-200 dark:ring-slate-700">
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
-                 <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <UserCircle className="w-5 h-5 text-sky-600" /> Profil Utilisateur
-                 </h3>
-                 <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-1.5 rounded-full transition">
-                   <X className="w-5 h-5" />
-                 </button>
-              </div>
-              <div className="p-8 overflow-y-auto max-h-[80vh]">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-in fade-in">
+           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100 relative max-h-[90vh] overflow-y-auto">
+              <div className="p-8 text-center border-b border-slate-100 relative bg-gradient-to-b from-[#87CEEB]/30 to-white">
+                 <button onClick={() => setIsProfileModalOpen(false)} className="absolute top-4 right-4 p-2 bg-white rounded-full hover:bg-slate-100 transition shadow-sm border border-slate-100"><X className="w-4 h-4 text-slate-500" /></button>
                  
-                 <div className="flex flex-col items-center mb-8">
-                    <div className="relative mb-4 group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                       <UserAvatar user={user} size="xl" className="shadow-lg" />
-                       <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition backdrop-blur-[1px]">
-                          <Upload className="w-6 h-6 text-white" />
-                       </div>
+                 <div className="relative inline-block mt-2 mb-4 group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                    <UserAvatar user={user} size="xl" className="ring-4 ring-white shadow-premium" />
+                    <div className="absolute inset-0 bg-brand-900/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-[1px]">
+                       <Upload className="w-6 h-6 text-white" />
                     </div>
-                    <h4 className="font-bold text-xl text-slate-900 dark:text-white">{user?.name}</h4>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium">{getRoleLabel()}</p>
+                 </div>
+                 <h3 className="text-xl font-bold text-slate-900">{user?.name}</h3>
+                 <p className="text-[#0EA5E9] font-medium text-sm mt-1">{user?.email}</p>
+                 <div className="mt-2 inline-block px-3 py-1 bg-[#87CEEB]/20 text-[#0369A1] text-xs font-bold rounded-full uppercase tracking-wide">
+                   {user?.role}
+                 </div>
+              </div>
+              <div className="p-6 bg-surface-50 space-y-6">
+                 {/* Avatar Selection */}
+                 <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 text-center">Choisir un avatar</p>
+                    <div className="grid grid-cols-5 gap-3">
+                        {AVATAR_PRESETS.map((emoji, i) => (
+                          <button key={i} onClick={() => handleAvatarSelect(emoji)} className="text-2xl h-12 rounded-xl bg-white border border-slate-200 hover:border-[#87CEEB] hover:shadow-md hover:scale-110 transition duration-200 flex items-center justify-center">
+                              {emoji}
+                          </button>
+                        ))}
+                    </div>
                  </div>
 
-                 <div className="space-y-6">
-                    <div>
-                       <label className="block text-xs font-bold text-slate-500 uppercase mb-3 tracking-wide">Choisir un avatar</label>
-                       <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-                          {AVATAR_PRESETS.map((avatar, idx) => (
-                             <button 
-                               key={idx}
-                               onClick={() => handleAvatarSelect(avatar)}
-                               className={`
-                                 text-2xl h-12 rounded-xl border flex items-center justify-center transition
-                                 hover:scale-105 hover:shadow-sm
-                                 ${user?.avatar === avatar ? 'bg-sky-50 border-sky-500 ring-2 ring-sky-200' : 'bg-slate-50 border-slate-200 hover:border-sky-300'}
-                               `}
-                             >
-                               {avatar}
-                             </button>
-                          ))}
-                       </div>
-                    </div>
+                 <div className="border-t border-slate-200 my-2"></div>
+                 
+                 {/* Change Password Section */}
+                 <div>
+                    <button 
+                      onClick={() => setShowPasswordChange(!showPasswordChange)}
+                      className="w-full flex items-center justify-between text-sm font-bold text-slate-600 hover:text-slate-800"
+                    >
+                      <span className="flex items-center gap-2"><Lock className="w-4 h-4"/> Modifier mot de passe</span>
+                      <ChevronRight className={`w-4 h-4 transition ${showPasswordChange ? 'rotate-90' : ''}`} />
+                    </button>
 
-                    <div className="border-t border-slate-100 dark:border-slate-800 pt-6">
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-3 tracking-wide">Ou importer une image</label>
-                        <input 
-                           type="file" 
-                           accept="image/*" 
-                           ref={fileInputRef} 
-                           className="hidden"
-                           onChange={handleFileUpload}
-                        />
+                    {showPasswordChange && (
+                      <form onSubmit={handleChangePassword} className="mt-4 space-y-3 animate-in slide-in-from-top-2">
+                        <div>
+                          <input 
+                            type="password" 
+                            placeholder="Nouveau mot de passe"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:border-brand-pastel outline-none"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <input 
+                            type="password" 
+                            placeholder="Confirmer mot de passe"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:border-brand-pastel outline-none"
+                            required
+                          />
+                        </div>
                         <button 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-6 rounded-xl flex flex-col items-center justify-center text-slate-500 hover:border-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition cursor-pointer gap-2"
+                          type="submit"
+                          className="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition"
                         >
-                           <Upload className="w-6 h-6 opacity-50" />
-                           <span className="font-medium text-sm">Cliquez pour importer une photo</span>
+                          Sauvegarder
                         </button>
-                    </div>
+                      </form>
+                    )}
+                 </div>
+
+                 <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept="image/*" />
+                 
+                 {/* Mobile Logout in Modal */}
+                 <div className="md:hidden pt-4 border-t border-slate-200">
+                    <button 
+                      onClick={logout}
+                      className="w-full flex items-center justify-center gap-2 text-sm font-bold text-red-500 bg-red-50 hover:bg-red-100 p-3 rounded-xl transition"
+                    >
+                      <LogOut className="w-4 h-4" /> Se déconnecter
+                    </button>
                  </div>
               </div>
            </div>
         </div>
       )}
+
     </div>
   );
 };

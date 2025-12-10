@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Poll } from '../types';
-import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send, Lock, Unlock } from 'lucide-react';
+import { Vote, Trash2, Plus, BarChart2, CheckCircle, Eye, EyeOff, Pencil, X, Send, Lock, Unlock, Timer } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { addHours, isAfter } from 'date-fns';
 
 export const Polls: React.FC = () => {
   const { user, polls, addPoll, updatePoll, votePoll, deletePoll, shareResource, addNotification } = useApp();
@@ -12,15 +14,21 @@ export const Polls: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [optionsStr, setOptionsStr] = useState(''); 
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [durationHours, setDurationHours] = useState<number | ''>('');
 
-  const canManage = user?.role === Role.RESPONSIBLE;
+  // Permission: Responsable OR Admin can create/manage
+  const canManage = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
   const isAdmin = user?.role === Role.ADMIN;
+
+  // --- FILTER BY CLASS ---
+  const myPolls = isAdmin ? polls : polls.filter(p => p.classId === user?.classId);
 
   const openCreate = () => {
     setEditingId(null);
     setQuestion('');
     setOptionsStr('');
     setIsAnonymous(false);
+    setDurationHours('');
     setIsModalOpen(true);
   };
 
@@ -29,10 +37,17 @@ export const Polls: React.FC = () => {
     setQuestion(poll.question);
     setOptionsStr(poll.options.map(o => o.label).join(', '));
     setIsAnonymous(poll.isAnonymous);
+    setDurationHours(poll.durationHours || '');
     setIsModalOpen(true);
   };
 
   const togglePollStatus = (poll: Poll) => {
+    // Note: Activating/Deactivating might be allowed for non-authors if Admin
+    // But for this requirement, we stick to author for edits.
+    if (poll.authorId !== user?.id && !isAdmin) {
+       addNotification("Action réservée au créateur", "ERROR");
+       return;
+    }
     updatePoll(poll.id, { active: !poll.active });
     addNotification(poll.active ? 'Sondage clôturé' : 'Sondage réouvert', 'INFO');
   };
@@ -50,19 +65,23 @@ export const Polls: React.FC = () => {
       return;
     }
 
+    const payload = {
+        question,
+        isAnonymous,
+        durationHours: durationHours === '' ? undefined : Number(durationHours)
+    };
+
     if (editingId) {
        updatePoll(editingId, {
-         question,
-         isAnonymous,
+         ...payload,
          options: optionsList 
        });
     } else {
         addPoll({
-          question,
+          ...payload,
           type: 'SINGLE',
           options: optionsList,
           active: true,
-          isAnonymous
         });
     }
     setIsModalOpen(false);
@@ -80,10 +99,21 @@ export const Polls: React.FC = () => {
     votePoll(pollId, optionId);
   };
 
+  // --- FILTRE : Masquer les sondages expirés (Durée) ---
+  const visiblePolls = myPolls.filter(poll => {
+      if (poll.durationHours && poll.durationHours > 0) {
+          const expirationDate = addHours(new Date(poll.createdAt), poll.durationHours);
+          if (isAfter(new Date(), expirationDate)) {
+              return false; // Masqué
+          }
+      }
+      return true;
+  });
+
   const COLORS = ['#0EA5E9', '#6366F1', '#14B8A6', '#F59E0B', '#F43F5E'];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 md:px-0 pb-20 md:pb-12">
+    <div className="max-w-4xl mx-auto px-0 md:px-0">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-10 gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white flex items-center gap-3 tracking-tight">
@@ -103,18 +133,21 @@ export const Polls: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:gap-8">
-        {polls.length === 0 && (
+        {visiblePolls.length === 0 && (
           <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
              <Vote className="w-16 h-16 mx-auto mb-4 opacity-10 text-slate-900 dark:text-white" />
-             <p className="font-medium text-lg text-slate-500">Aucun sondage actif.</p>
+             <p className="font-medium text-lg text-slate-500">Aucun sondage actif ou visible.</p>
           </div>
         )}
-        {polls.map(poll => {
+        {visiblePolls.map(poll => {
           const totalVotes = poll.options.reduce((acc, curr) => acc + curr.voterIds.length, 0);
           const userVotedOptionId = poll.options.find(opt => opt.voterIds.includes(user?.id || ''))?.id;
           const hasVoted = !!userVotedOptionId;
           const canViewResults = hasVoted || user?.role === Role.RESPONSIBLE || isAdmin || !poll.active;
           const chartData = poll.options.map(o => ({ ...o, votes: o.voterIds.length }));
+
+          // PERMISSION : Seul le créateur voit les boutons
+          const isAuthor = user?.id === poll.authorId;
 
           return (
             <div key={poll.id} className={`bg-white dark:bg-slate-900 rounded-2xl shadow-sm border p-6 transition group ${poll.active ? 'border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700' : 'border-slate-100 dark:border-slate-800 opacity-80 bg-slate-50/50'}`}>
@@ -135,9 +168,14 @@ export const Polls: React.FC = () => {
                         </span>
                       )}
                       <span className="text-xs font-bold text-slate-400">• {totalVotes} votes</span>
+                      {poll.durationHours && (
+                        <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1 ml-2">
+                            <Timer className="w-3 h-3" /> Visibilité: {poll.durationHours}h
+                        </span>
+                       )}
                    </div>
                 </div>
-                {canManage && (
+                {isAuthor && (
                   <div className="flex gap-2 w-full md:w-auto flex-wrap">
                     <button 
                       onClick={() => togglePollStatus(poll)}
@@ -148,7 +186,11 @@ export const Polls: React.FC = () => {
                     <button onClick={() => shareResource('POLL', poll)} className="flex-1 md:flex-none justify-center text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 p-2.5 rounded-lg transition active:scale-95">
                       <Send className="w-4 h-4" />
                     </button>
-                    <button onClick={() => openEdit(poll)} className="flex-1 md:flex-none justify-center text-indigo-600 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 p-2.5 rounded-lg transition active:scale-95">
+                    <button 
+                      onClick={() => openEdit(poll)} 
+                      className="flex-1 md:flex-none justify-center p-2.5 rounded-lg transition active:scale-95"
+                      style={{ color: '#87CEEB', backgroundColor: 'rgba(135, 206, 235, 0.1)' }}
+                    >
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button onClick={() => deletePoll(poll.id)} className="flex-1 md:flex-none justify-center text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 p-2.5 rounded-lg transition active:scale-95">
@@ -249,7 +291,7 @@ export const Polls: React.FC = () => {
       </div>
 
       {isModalOpen && canManage && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[160] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
               <h3 className="font-bold text-lg text-slate-800 dark:text-white uppercase tracking-wide">
@@ -269,6 +311,21 @@ export const Polls: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Options (séparées par virgule)</label>
                   <textarea required value={optionsStr} onChange={e => setOptionsStr(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-base focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition font-medium text-slate-800 dark:text-white" placeholder="Option 1, Option 2, Option 3" rows={3}/>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Durée (Heures) - Optionnel</label>
+                    <div className="relative">
+                        <Timer className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                        <input 
+                            type="number" 
+                            min="1"
+                            value={durationHours} 
+                            onChange={e => setDurationHours(e.target.value === '' ? '' : Number(e.target.value))} 
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 pl-10 text-base font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition text-slate-800 dark:text-white" 
+                            placeholder="Illimité" 
+                        />
+                    </div>
                 </div>
                 
                 <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-300 transition">
