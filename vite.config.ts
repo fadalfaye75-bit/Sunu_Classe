@@ -6,9 +6,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // Injection sécurisée de la clé API pour l'IA
-    // La valeur par défaut assure le fonctionnement même si .env est manquant sur le serveur de build
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || "AIzaSyA5cX0Kp2QP4nZQ_FJOb5qgxo0aP1q5E3Y")
+    // Injection sécurisée de la clé API pour l'IA (Gemini)
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || "")
   },
   build: {
     outDir: 'dist',
