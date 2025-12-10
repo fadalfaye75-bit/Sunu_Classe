@@ -50,6 +50,7 @@ export const AdminPanel: React.FC = () => {
   const [emailProvider, setEmailProvider] = useState(emailConfig.provider);
 
   const isAdmin = user?.role === Role.ADMIN;
+  const isResponsible = user?.role === Role.RESPONSIBLE;
   
   const filteredUsers = isAdmin 
     ? users 
@@ -390,6 +391,10 @@ export const AdminPanel: React.FC = () => {
                     <tr><td colSpan={4} className="p-8 text-center">Aucun utilisateur trouvé dans votre périmètre.</td></tr>
                   ) : filteredUsers.map((u) => {
                     const userClass = classes.find(c => c.id === u.classId);
+                    
+                    // Logic: Admin can edit everyone. Responsible can edit STUDENTS in their CLASS.
+                    const canEdit = isAdmin || (isResponsible && u.role === Role.STUDENT && u.classId === user?.classId);
+
                     return (
                       <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition group">
                         <td className="px-6 py-4">
@@ -418,8 +423,7 @@ export const AdminPanel: React.FC = () => {
                              {copiedUserId === u.id ? <Check className="w-4 h-4 text-emerald-500"/> : <Copy className="w-4 h-4" />}
                            </button>
                            
-                           {/* Allow edit/delete only if Admin OR if the target is a Student in the Responsible's class */}
-                           {(isAdmin || (u.role === Role.STUDENT)) && (
+                           {canEdit && (
                              <>
                                <button onClick={() => openEditUser(u)} className="flex items-center gap-2 p-2 px-3 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-lg transition text-xs font-bold" title="Modifier">
                                  <Pencil className="w-4 h-4" /> <span className="hidden xl:inline">Modifier</span>
@@ -750,11 +754,17 @@ export const AdminPanel: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Rôle</label>
-                        <select value={userRole} onChange={e => setUserRole(e.target.value as Role)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 outline-none focus:border-indigo-500 dark:text-white">
+                        <select 
+                          value={userRole} 
+                          onChange={e => setUserRole(e.target.value as Role)} 
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 outline-none focus:border-indigo-500 dark:text-white"
+                          disabled={!isAdmin} // Seul l'admin peut changer le rôle pour éviter l'élévation de privilèges
+                        >
                            <option value={Role.STUDENT}>Étudiant</option>
                            <option value={Role.RESPONSIBLE}>Responsable</option>
                            {isAdmin && <option value={Role.ADMIN}>Administrateur</option>}
                         </select>
+                        {!isAdmin && <p className="text-[10px] text-slate-400 mt-1">Verrouillé sur Étudiant.</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Classe</label>
