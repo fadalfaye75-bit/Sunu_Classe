@@ -88,6 +88,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   const navItems = [
     { id: 'dashboard', label: 'Aperçu', icon: LayoutDashboard, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
     { id: 'timetable', label: 'Emploi du Temps', icon: FileSpreadsheet, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
+    { id: 'assistant', label: 'Assistant IA', icon: Sparkles, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
     { id: 'infos', label: 'Annonces', icon: Megaphone, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
     { id: 'meet', label: 'Visio', icon: Video, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
     { id: 'ds', label: 'Examens', icon: CalendarDays, roles: [Role.ADMIN, Role.RESPONSIBLE, Role.STUDENT] },
