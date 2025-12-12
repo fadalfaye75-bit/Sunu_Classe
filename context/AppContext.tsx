@@ -1,7 +1,7 @@
 
 
 import React, { createContext, useContext, useState, PropsWithChildren, useMemo, useEffect, useCallback } from 'react';
-import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption, SentEmail, EmailConfig, AppContextType } from '../types';
+import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption, SentEmail, EmailConfig, AppContextType, TimeTable } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -22,6 +22,8 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const [meets, setMeets] = useState<MeetSession[]>(INITIAL_MEETS);
   const [exams, setExams] = useState<Exam[]>(INITIAL_EXAMS);
   const [polls, setPolls] = useState<Poll[]>(INITIAL_POLLS);
+  const [timeTables, setTimeTables] = useState<TimeTable[]>([]); // NOUVEAU
+
   // Defaulting to "Class Connect"
   const [schoolName, setSchoolNameState] = useState('Class Connect');
   
@@ -97,14 +99,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     const interval = setInterval(() => {
       if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
         logout();
-        // Notification après logout pour expliquer
-        // Note: state user sera null, mais notification sera ajoutée au prochain render ou via mécanisme global si nécessaire
-        // Ici on use un petit hack: setTimeout pour addNotif après le flush state logout
         setTimeout(() => {
-             // On utilise directement l'alerte native ou une notif persistante si possible, 
-             // mais ici addNotification fonctionne dans le contexte.
-             // Cependant, logout() clear le user, l'app redirige vers login.
-             // Idéalement, on stocke "reason=timeout" dans sessionStorage et Login.tsx l'affiche.
              sessionStorage.setItem('logout_reason', 'inactivity');
         }, 100);
       }
@@ -135,12 +130,9 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     const id = Math.random().toString(36).substr(2, 9);
     const notif: Notification = { id, message, type, timestamp: new Date().toISOString(), read: false, targetPage, resourceId };
     
-    // Toast (temporary)
     setNotifications(prev => [...prev, notif]);
-    // History (persistent)
     setNotificationHistory(prev => [notif, ...prev]);
 
-    // Auto dismiss toast
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 5000);
@@ -179,7 +171,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     };
     setAuditLogs(prev => [log, ...prev]);
     
-    // Persist to Supabase
     try {
       await supabase.from('audit_logs').insert([{
         action: log.action,
@@ -195,35 +186,29 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   // --- Fetch Data ---
   const refreshAllData = async () => {
     try {
-      // 1. Classes
       const { data: classesData } = await supabase.from('classes').select('*');
       if (classesData) setClasses(classesData);
 
-      // 2. Users
       const { data: usersData } = await supabase.from('users').select('*');
       if (usersData) {
         const mappedUsers = usersData.map((u: any) => ({
           ...u,
-          classId: u.class_id, // Map snake_case to camelCase
+          classId: u.class_id,
         }));
         setUsers(mappedUsers);
       }
       
-      // 3. Sent Emails (for Admin)
       const { data: emailData } = await supabase.from('sent_emails').select('*').order('created_at', { ascending: false });
       if (emailData) setSentEmails(emailData);
 
-      // 4. Audit Logs
       const { data: logsData } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50);
       if (logsData) setAuditLogs(logsData as AuditLog[]);
       
-      // 5. Settings
       const { data: settingsData } = await supabase.from('app_settings').select('*');
       if (settingsData) {
         const schoolNameSetting = settingsData.find(s => s.key === 'school_name');
         if (schoolNameSetting) setSchoolNameState(schoolNameSetting.value);
         
-        // Load Email Config if exists (Simulated here, ideally stored securely)
         const emailProvider = settingsData.find(s => s.key === 'email_provider')?.value;
         const emailSender = settingsData.find(s => s.key === 'email_sender')?.value;
         if (emailProvider) {
@@ -236,15 +221,13 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     }
   };
 
-  // Initial Load
   useEffect(() => {
     refreshAllData();
-  }, [user]); // Refresh when user logs in
+  }, [user]);
 
   // --- Auth ---
   const login = async (email: string, password?: string, rememberMe?: boolean) => {
     try {
-      // 1. Fetch User
       const { data: dbUser, error } = await supabase
         .from('users')
         .select('*')
@@ -254,7 +237,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
       let matchedUser = dbUser;
 
       if (error || !dbUser) {
-        // Fallback to constants for demo if DB is empty/fails
         const localUser = users.find(u => u.email === email);
         if (localUser) matchedUser = localUser;
       }
@@ -263,9 +245,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
         return false;
       }
 
-      // 2. Password Check Logic
-      // Note: In a real app, use Supabase Auth or hashed passwords.
-      // Here we implement the requirement: Admin='passer25', others > 4 chars.
       if (password) {
           if (matchedUser.role === Role.ADMIN) {
               if (password !== 'passer25') return false;
@@ -273,7 +252,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
               if (password.length < 4) return false;
           }
       } else {
-          // If no password provided but required by UI (should not happen if UI is correct)
           return false;
       }
 
@@ -286,11 +264,9 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
         avatar: matchedUser.avatar
       };
 
-      // 3. Set Session
       setUser(appUser);
       setLastActivity(Date.now());
       
-      // Persistence
       if (rememberMe) {
         localStorage.setItem('sunuclasse_user', JSON.stringify(appUser));
       } else {
@@ -320,7 +296,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   
   const updateEmailConfig = async (config: EmailConfig) => {
     setEmailConfig(config);
-    // Persist non-sensitive data
     await supabase.from('app_settings').upsert({ key: 'email_provider', value: config.provider });
     if (config.senderEmail) {
         await supabase.from('app_settings').upsert({ key: 'email_sender', value: config.senderEmail });
@@ -341,7 +316,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const updateAnnouncement = async (id: string, item: any) => {
     const existing = announcements.find(a => a.id === id);
     if (!existing) return;
-    // Security Check: Creator or Admin
     if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
        addNotification("Action non autorisée", "ERROR");
        logAction('SECURITY', `Tentative modif annonce ${id} par ${user?.name}`, 'CRITICAL');
@@ -356,7 +330,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const deleteAnnouncement = async (id: string) => {
     const existing = announcements.find(a => a.id === id);
     if (!existing) return;
-    // Security Check: Creator or Admin (Moderation)
     if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
        addNotification("Action non autorisée", "ERROR");
        logAction('SECURITY', `Tentative suppression annonce ${id} par ${user?.name}`, 'CRITICAL');
@@ -457,7 +430,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const updatePoll = async (id: string, item: any) => {
     const existing = polls.find(p => p.id === id);
     if (!existing) return;
-    // Note: 'active' toggle might be allowed by Admin, but structure editing is Author only
     if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
        addNotification("Action non autorisée", "ERROR");
        logAction('SECURITY', `Tentative modif sondage ${id}`, 'CRITICAL');
@@ -472,13 +444,11 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     setPolls(prev => prev.map(poll => {
       if (poll.id !== pollId) return poll;
       
-      // Remove previous vote if any (Single choice behavior)
       const cleanedOptions = poll.options.map(opt => ({
         ...opt,
         voterIds: opt.voterIds.filter(vid => vid !== user.id)
       }));
 
-      // Add new vote
       const updatedOptions = cleanedOptions.map(opt => 
         opt.id === optionId ? { ...opt, voterIds: [...opt.voterIds, user.id] } : opt
       );
@@ -502,13 +472,40 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     logAction('SUPPRESSION', `Sondage ID: ${id}`, 'WARNING');
   };
 
+  // --- TIME TABLES (NOUVEAU) ---
+  const addTimeTable = async (item: Omit<TimeTable, 'id' | 'authorId' | 'classId' | 'dateAdded'>) => {
+    const newItem: TimeTable = { 
+      ...item, 
+      id: Math.random().toString(36).substr(2, 9), 
+      dateAdded: new Date().toISOString(), 
+      classId: user?.classId || '',
+      authorId: user?.id || '' 
+    };
+    setTimeTables(prev => [newItem, ...prev]);
+    addNotification('Emploi du temps ajouté', 'SUCCESS', 'timetable', newItem.id);
+    logAction('CREATION', `Emploi du temps: ${item.title}`);
+  };
+
+  const deleteTimeTable = async (id: string) => {
+    const existing = timeTables.find(t => t.id === id);
+    if (!existing) return;
+    if (existing.authorId !== user?.id && user?.role !== Role.ADMIN) {
+       addNotification("Action non autorisée", "ERROR");
+       logAction('SECURITY', `Tentative suppression emploi du temps ${id}`, 'CRITICAL');
+       return;
+    }
+
+    setTimeTables(prev => prev.filter(t => t.id !== id));
+    addNotification('Emploi du temps supprimé', 'INFO');
+    logAction('SUPPRESSION', `Emploi du temps ID: ${id}`, 'WARNING');
+  };
+
   // --- SHARE FUNCTION (EMAIL with SendGrid Support) ---
   const shareResource = async (type: 'ANNOUNCEMENT' | 'MEET' | 'EXAM' | 'POLL', item: any) => {
     if (!user) return;
 
     const currentClass = getCurrentClass();
     
-    // 1. Déterminer les destinataires
     let targetEmails = currentClass?.email;
     let recipientLabel = currentClass?.email ? `Mailing List (${currentClass.email})` : 'Membres de la classe';
 
@@ -526,7 +523,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
         return;
     }
     
-    // 2. Générer le contenu
     let subject = '';
     let body = '';
     const footer = `\r\n\r\n--\r\nEnvoyé depuis ${schoolName} - Portail Numérique`;
@@ -551,7 +547,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
         break;
     }
 
-    // 3. Insert into History (Supabase)
     const bodyForDisplay = body.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
 
     const { error } = await supabase.from('sent_emails').insert([{
@@ -571,7 +566,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
 
     logAction('PARTAGE', `Email initié (${type}) via ${emailConfig.provider}`);
 
-    // 4. Send via Service (Mailto or SendGrid)
     if (emailConfig.provider === 'SENDGRID') {
         addNotification(`Envoi via SendGrid en cours vers ${recipientLabel}...`, 'INFO');
     } else {
@@ -710,10 +704,8 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const updateUser = async (id: string, item: Partial<User>) => {
-    // Security check for User Management
     const targetUser = users.find(u => u.id === id);
     if (targetUser && user?.role === Role.RESPONSIBLE) {
-        // A Responsible can only manage users in their class, and cannot manage other Responsibles/Admins
         if (targetUser.role === Role.ADMIN || targetUser.role === Role.RESPONSIBLE) {
             addNotification("Action non autorisée sur ce rôle", "ERROR");
             return;
@@ -743,10 +735,8 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const deleteUser = async (id: string) => {
-    // Security check for User Management
     const targetUser = users.find(u => u.id === id);
     if (targetUser && user?.role === Role.RESPONSIBLE) {
-        // A Responsible can only manage users in their class, and cannot delete other Responsibles/Admins
         if (targetUser.role === Role.ADMIN || targetUser.role === Role.RESPONSIBLE) {
             addNotification("Action non autorisée sur ce rôle", "ERROR");
             return;
@@ -768,7 +758,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
 
   const contextValue: AppContextType = {
     user, users, classes, schoolName, setSchoolName,
-    announcements, meets, exams, polls, sentEmails,
+    announcements, meets, exams, polls, sentEmails, timeTables,
     auditLogs, notifications, notificationHistory,
     addNotification, dismissNotification, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, clearNotificationHistory,
     highlightedItemId, setHighlightedItemId,
@@ -778,6 +768,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     addMeet, updateMeet, deleteMeet,
     addExam, updateExam, deleteExam,
     addPoll, updatePoll, votePoll, deletePoll,
+    addTimeTable, deleteTimeTable,
     emailConfig, updateEmailConfig, shareResource, resendEmail,
     addClass, updateClass, deleteClass,
     addUser, importUsers, updateUser, deleteUser

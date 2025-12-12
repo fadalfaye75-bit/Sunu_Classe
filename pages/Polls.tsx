@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Poll } from '../types';
@@ -19,11 +20,11 @@ export const Polls: React.FC = () => {
   // Delete Confirmation State
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Permission: Responsable OR Admin can create/manage
-  const canManage = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
+  // Permission: Responsable UNIQUEMENT peut créer/gérer. L'Admin supervise.
+  const canManage = user?.role === Role.RESPONSIBLE;
   const isAdmin = user?.role === Role.ADMIN;
 
-  // --- FILTER BY CLASS ---
+  // --- FILTER BY CLASS (Admin voit tout) ---
   const myPolls = isAdmin ? polls : polls.filter(p => p.classId === user?.classId);
 
   const openCreate = () => {
@@ -45,9 +46,8 @@ export const Polls: React.FC = () => {
   };
 
   const togglePollStatus = (poll: Poll) => {
-    // Note: Activating/Deactivating might be allowed for non-authors if Admin
-    // But for this requirement, we stick to author for edits.
-    if (poll.authorId !== user?.id && !isAdmin) {
+    // Seul le créateur (Responsable) peut le faire.
+    if (poll.authorId !== user?.id) {
        addNotification("Action réservée au créateur", "ERROR");
        return;
     }
@@ -166,7 +166,7 @@ export const Polls: React.FC = () => {
           const canViewResults = hasVoted || user?.role === Role.RESPONSIBLE || isAdmin || !poll.active;
           const chartData = poll.options.map(o => ({ ...o, votes: o.voterIds.length }));
 
-          // PERMISSION : Seul le créateur voit les boutons
+          // PERMISSION : Seul le créateur (Responsable) voit les boutons
           const isAuthor = user?.id === poll.authorId;
 
           return (

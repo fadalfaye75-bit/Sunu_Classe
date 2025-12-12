@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Exam } from '../types';
@@ -21,11 +22,11 @@ export const DS: React.FC = () => {
   // Delete Confirmation State
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Création réservée aux Responsables ou Admins (pour éviter les trolls)
-  const canCreate = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
+  // Création réservée au Responsable UNIQUEMENT. L'Admin supervise.
+  const canCreate = user?.role === Role.RESPONSIBLE;
   const isAdmin = user?.role === Role.ADMIN;
 
-  // --- FILTER BY CLASS ---
+  // --- FILTER BY CLASS (Admin voit tout) ---
   const myExams = isAdmin ? exams : exams.filter(e => e.classId === user?.classId);
 
   // --- FILTRE AUTOMATIQUE : Masquer les examens passés ---
@@ -167,7 +168,7 @@ export const DS: React.FC = () => {
             const examDate = new Date(exam.date);
             const isThisWeek = isSameWeek(examDate, new Date());
             
-            // PERMISSION : Seul le créateur voit les boutons
+            // PERMISSION : Seul le créateur (Responsable) voit les boutons
             const isAuthor = user?.id === exam.authorId;
 
             return (

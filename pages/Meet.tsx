@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, MeetSession } from '../types';
@@ -24,11 +25,11 @@ export const Meet: React.FC = () => {
 
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
   
-  // Permission: Responsable OR Admin can create/manage
-  const canManage = user?.role === Role.RESPONSIBLE || user?.role === Role.ADMIN;
+  // Permission: Responsable UNIQUEMENT peut créer. L'Admin supervise.
+  const canManage = user?.role === Role.RESPONSIBLE;
   const isAdmin = user?.role === Role.ADMIN;
 
-  // --- FILTER BY CLASS ---
+  // --- FILTER BY CLASS (Admin voit tout) ---
   const myMeets = isAdmin ? meets : meets.filter(m => m.classId === user?.classId);
 
   const openCreate = () => {
@@ -130,7 +131,7 @@ export const Meet: React.FC = () => {
            const isSoon = isAfter(meetDate, now) && isBefore(meetDate, addMinutes(now, 60));
            const isLive = isBefore(meetDate, now) && isBefore(now, addMinutes(meetDate, 60));
 
-           // PERMISSION : Seul le créateur voit les boutons
+           // PERMISSION : Seul le créateur voit les boutons. (Admin n'étant pas créateur, il ne les voit pas)
            const isAuthor = user?.id === meet.authorId;
 
            return (

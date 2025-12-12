@@ -28,6 +28,13 @@ export enum Urgency {
   URGENT = 'URGENT',
 }
 
+export interface Attachment {
+  id: string;
+  type: 'PDF' | 'IMAGE';
+  url: string; // Base64 ou URL
+  name: string;
+}
+
 export interface Announcement {
   id: string;
   title: string;
@@ -37,6 +44,18 @@ export interface Announcement {
   authorId: string;
   classId: string;
   durationHours?: number; // Durée de visibilité en heures (optionnel)
+  link?: string; // Lien externe (Google Forms/Meet/Drive)
+  attachments?: Attachment[]; // Fichiers joints (PDF, Images)
+}
+
+export interface TimeTable {
+  id: string;
+  title: string;
+  fileUrl: string; // Base64 du fichier Excel
+  fileName: string;
+  dateAdded: string;
+  classId: string;
+  authorId: string;
 }
 
 export interface MeetSession {
@@ -143,6 +162,7 @@ export interface AppContextType {
   meets: MeetSession[];
   exams: Exam[];
   polls: Poll[];
+  timeTables: TimeTable[]; // NOUVEAU
   sentEmails: SentEmail[];
   
   // Security & UX
@@ -186,6 +206,10 @@ export interface AppContextType {
   updatePoll: (id: string, item: Partial<Poll>) => Promise<void>;
   votePoll: (pollId: string, optionId: string) => Promise<void>;
   deletePoll: (id: string) => Promise<void>;
+
+  // Emplois du temps (NOUVEAU)
+  addTimeTable: (item: Omit<TimeTable, 'id' | 'authorId' | 'classId' | 'dateAdded'>) => Promise<void>;
+  deleteTimeTable: (id: string) => Promise<void>;
 
   // Sharing & Config
   emailConfig: EmailConfig;
