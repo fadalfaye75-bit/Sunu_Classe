@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useDeferredValue, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, Urgency, Announcement, Attachment } from '../types';
-import { Megaphone, Trash2, Clock, Plus, X, ArrowUpDown, Filter, Send, Mail, User, AlertCircle, Timer, Search, Archive, Eye, Copy, ChevronLeft, ChevronRight, Pencil, School, Calendar, AlertTriangle, FileText, Info, Link as LinkIcon, Image as ImageIcon, ExternalLink, Download, File } from 'lucide-react';
+import { Megaphone, Trash2, Clock, Plus, X, ArrowUpDown, Filter, Send, Mail, User, AlertCircle, Timer, Search, Archive, Eye, Copy, ChevronLeft, ChevronRight, Pencil, School, Calendar, AlertTriangle, FileText, Info, Link as LinkIcon, Image as ImageIcon, ExternalLink, Download, File, Lock } from 'lucide-react';
 import { format, isAfter, isBefore, startOfDay, endOfDay, addHours } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { UserAvatar } from '../components/UserAvatar';
@@ -530,14 +530,25 @@ export const Infos: React.FC = () => {
                  {viewingItem.link && (
                     <div className="mb-8">
                       <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><LinkIcon className="w-4 h-4"/> Lien associé</h4>
-                      <a href={viewingItem.link} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-3 p-4 rounded-xl border transition hover:shadow-md group ${getLinkIcon(viewingItem.link).color}`}>
-                          {React.createElement(getLinkIcon(viewingItem.link).icon, { className: "w-6 h-6" })}
-                          <div className="flex-1">
-                             <div className="font-bold">{getLinkIcon(viewingItem.link).label}</div>
-                             <div className="text-xs opacity-70 truncate">{viewingItem.link}</div>
-                          </div>
-                          <ExternalLink className="w-4 h-4 opacity-50 group-hover:opacity-100" />
-                      </a>
+                      {isAdmin ? (
+                        <div className="flex items-center gap-3 p-4 rounded-xl border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-70 cursor-not-allowed">
+                            {React.createElement(getLinkIcon(viewingItem.link).icon, { className: "w-6 h-6 text-slate-400" })}
+                            <div className="flex-1">
+                                <div className="font-bold text-slate-500">{getLinkIcon(viewingItem.link).label} (Lecture seule)</div>
+                                <div className="text-xs text-slate-400 truncate">{viewingItem.link}</div>
+                            </div>
+                            <Lock className="w-4 h-4 text-slate-400" />
+                        </div>
+                      ) : (
+                        <a href={viewingItem.link} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-3 p-4 rounded-xl border transition hover:shadow-md group ${getLinkIcon(viewingItem.link).color}`}>
+                            {React.createElement(getLinkIcon(viewingItem.link).icon, { className: "w-6 h-6" })}
+                            <div className="flex-1">
+                                <div className="font-bold">{getLinkIcon(viewingItem.link).label}</div>
+                                <div className="text-xs opacity-70 truncate">{viewingItem.link}</div>
+                            </div>
+                            <ExternalLink className="w-4 h-4 opacity-50 group-hover:opacity-100" />
+                        </a>
+                      )}
                     </div>
                  )}
 

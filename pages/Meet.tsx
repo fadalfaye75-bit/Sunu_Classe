@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, MeetSession } from '../types';
-import { Video, Plus, Trash2, ExternalLink, AlertCircle, Pencil, User, Send, X, Copy, Mail } from 'lucide-react';
+import { Video, Plus, Trash2, ExternalLink, AlertCircle, Pencil, User, Send, X, Copy, Mail, Eye, Lock } from 'lucide-react';
 import { format, isBefore, addMinutes, isAfter } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -174,16 +174,26 @@ export const Meet: React.FC = () => {
 
                {/* Actions */}
                <div className="flex flex-col w-full md:w-auto gap-3">
-                 <a 
-                   href={meet.link} 
-                   target="_blank" 
-                   rel="noreferrer" 
-                   className={`w-full md:w-auto text-white px-6 py-3.5 rounded-xl font-bold transition flex items-center justify-center gap-2 active:translate-y-1 shadow-md
-                     ${isLive || isSoon ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' : 'bg-slate-800 hover:bg-slate-700 shadow-slate-800/20'}
-                   `}
-                 >
-                   <span>Rejoindre</span> <ExternalLink className="w-4 h-4" />
-                 </a>
+                 {isAdmin ? (
+                    <button 
+                      disabled
+                      className="w-full md:w-auto text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-6 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 cursor-not-allowed"
+                    >
+                      <span>Lecture Seule</span> <Lock className="w-4 h-4" />
+                    </button>
+                 ) : (
+                   <a 
+                     href={meet.link} 
+                     target="_blank" 
+                     rel="noreferrer" 
+                     className={`w-full md:w-auto text-white px-6 py-3.5 rounded-xl font-bold transition flex items-center justify-center gap-2 active:translate-y-1 shadow-md
+                       ${isLive || isSoon ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20' : 'bg-slate-800 hover:bg-slate-700 shadow-slate-800/20'}
+                     `}
+                   >
+                     <span>Rejoindre</span> <ExternalLink className="w-4 h-4" />
+                   </a>
+                 )}
+                 
                  <div className="flex gap-2 w-full">
                      <button 
                         onClick={() => handleCopy(meet)}
