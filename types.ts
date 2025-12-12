@@ -58,6 +58,18 @@ export interface TimeTable {
   authorId: string;
 }
 
+export interface Course {
+  id: string;
+  subject: string;
+  teacher: string;
+  room: string;
+  dayOfWeek: number; // 1 (Lundi) à 6 (Samedi)
+  startTime: string; // "08:00"
+  endTime: string; // "10:00"
+  color: string;
+  classId: string;
+}
+
 export interface MeetSession {
   id: string;
   subject: string;
@@ -116,6 +128,14 @@ export interface EmailConfig {
   senderName?: string;
 }
 
+// --- REMINDERS ---
+export interface ReminderSettings {
+  enabled: boolean;
+  courseDelay: number; // Minutes avant le cours
+  examDelay: number;   // Minutes avant l'examen
+  meetDelay: number;   // Minutes avant le meet
+}
+
 // --- SECURITY & UX ---
 
 export interface AuditLog {
@@ -162,7 +182,8 @@ export interface AppContextType {
   meets: MeetSession[];
   exams: Exam[];
   polls: Poll[];
-  timeTables: TimeTable[]; // NOUVEAU
+  timeTables: TimeTable[];
+  courses: Course[]; // NOUVEAU
   sentEmails: SentEmail[];
   
   // Security & UX
@@ -175,6 +196,10 @@ export interface AppContextType {
   markAllNotificationsAsRead: () => void;
   deleteNotification: (id: string) => void;
   clearNotificationHistory: () => void;
+  
+  // Reminders
+  reminderSettings: ReminderSettings;
+  updateReminderSettings: (settings: ReminderSettings) => void;
   
   // Deep Linking State
   highlightedItemId: string | null;
@@ -207,9 +232,13 @@ export interface AppContextType {
   votePoll: (pollId: string, optionId: string) => Promise<void>;
   deletePoll: (id: string) => Promise<void>;
 
-  // Emplois du temps (NOUVEAU)
+  // Emplois du temps
   addTimeTable: (item: Omit<TimeTable, 'id' | 'authorId' | 'classId' | 'dateAdded'>) => Promise<void>;
   deleteTimeTable: (id: string) => Promise<void>;
+
+  // Cours (Calendrier Interactif)
+  addCourse: (item: Omit<Course, 'id' | 'classId'>) => Promise<void>;
+  deleteCourse: (id: string) => Promise<void>;
 
   // Sharing & Config
   emailConfig: EmailConfig;

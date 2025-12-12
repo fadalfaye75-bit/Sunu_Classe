@@ -1,9 +1,9 @@
 
 
-import React, { createContext, useContext, useState, PropsWithChildren, useMemo, useEffect, useCallback } from 'react';
-import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption, SentEmail, EmailConfig, AppContextType, TimeTable } from '../types';
+import React, { createContext, useContext, useState, PropsWithChildren, useMemo, useEffect, useCallback, useRef } from 'react';
+import { User, Announcement, Exam, Poll, Role, MeetSession, ClassGroup, AuditLog, Notification, PollOption, SentEmail, EmailConfig, AppContextType, TimeTable, Course, ReminderSettings } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { format } from 'date-fns';
+import { format, differenceInMinutes, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { INITIAL_CLASSES, INITIAL_USERS, INITIAL_ANNOUNCEMENTS, INITIAL_MEETS, INITIAL_EXAMS, INITIAL_POLLS } from '../constants';
 import { sendEmail } from '../services/emailService';
@@ -12,6 +12,14 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Temps d'inactivité avant déconnexion automatique (15 minutes)
 const INACTIVITY_TIMEOUT = 15 * 60 * 1000; 
+
+// Initial Settings
+const DEFAULT_REMINDERS: ReminderSettings = {
+  enabled: true,
+  courseDelay: 15, // 15 min avant
+  examDelay: 60 * 24, // 24h avant
+  meetDelay: 30 // 30 min avant
+};
 
 export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   // State Initialization with Constants Fallback
@@ -22,7 +30,8 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const [meets, setMeets] = useState<MeetSession[]>(INITIAL_MEETS);
   const [exams, setExams] = useState<Exam[]>(INITIAL_EXAMS);
   const [polls, setPolls] = useState<Poll[]>(INITIAL_POLLS);
-  const [timeTables, setTimeTables] = useState<TimeTable[]>([]); // NOUVEAU
+  const [timeTables, setTimeTables] = useState<TimeTable[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]); // NOUVEAU: Liste des cours hebdo
 
   // Defaulting to "Class Connect"
   const [schoolName, setSchoolNameState] = useState('Class Connect');
@@ -35,6 +44,10 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     provider: 'MAILTO', // Default to client side for safety
     senderName: 'SunuClasse'
   });
+
+  // Reminder Settings
+  const [reminderSettings, setReminderSettings] = useState<ReminderSettings>(DEFAULT_REMINDERS);
+  const notifiedEventsRef = useRef<Set<string>>(new Set());
 
   // UX / Logs
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -53,7 +66,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
 
   // --- PERSISTENCE & THEME & ACTIVITY MONITORING ---
   
-  // 1. Initialize Theme & Session from Storage
+  // 1. Initialize Theme & Session & Local Data from Storage
   useEffect(() => {
     // Theme
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
@@ -78,7 +91,96 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
         console.error("Session invalide");
       }
     }
+
+    // Local Persistence for Courses (Simulation DB)
+    const storedCourses = localStorage.getItem('sunuclasse_courses');
+    if (storedCourses) {
+        try {
+            setCourses(JSON.parse(storedCourses));
+        } catch (e) {}
+    }
+
+    // Load Reminder Settings
+    const storedReminders = localStorage.getItem('sunuclasse_reminders');
+    if (storedReminders) {
+      try {
+        setReminderSettings(JSON.parse(storedReminders));
+      } catch (e) {}
+    }
   }, []);
+
+  // Persist Courses whenever they change
+  useEffect(() => {
+      localStorage.setItem('sunuclasse_courses', JSON.stringify(courses));
+  }, [courses]);
+
+  // Persist Reminders
+  const updateReminderSettings = (settings: ReminderSettings) => {
+    setReminderSettings(settings);
+    localStorage.setItem('sunuclasse_reminders', JSON.stringify(settings));
+    addNotification("Préférences de rappel mises à jour", "SUCCESS");
+  };
+
+  // --- REMINDER SCHEDULER (Runs every minute) ---
+  useEffect(() => {
+    if (!user || !reminderSettings.enabled) return;
+
+    const checkReminders = () => {
+      const now = new Date();
+      const currentDay = getDay(now); // 0=Sun, 1=Mon...
+      
+      // 1. Check Courses (Weekly)
+      const myCourses = user.role === Role.ADMIN ? courses : courses.filter(c => c.classId === user.classId);
+      myCourses.forEach(course => {
+        if (course.dayOfWeek === currentDay) {
+          const [h, m] = course.startTime.split(':').map(Number);
+          const courseTime = new Date(now);
+          courseTime.setHours(h, m, 0, 0);
+          
+          const diff = differenceInMinutes(courseTime, now);
+          const notifKey = `course-${course.id}-${now.getDate()}`; // Unique per day
+
+          if (diff > 0 && diff <= reminderSettings.courseDelay && !notifiedEventsRef.current.has(notifKey)) {
+            addNotification(`Rappel: Cours de ${course.subject} dans ${diff} min (${course.room})`, "INFO", "timetable");
+            notifiedEventsRef.current.add(notifKey);
+          }
+        }
+      });
+
+      // 2. Check Exams (One-off)
+      const myExams = user.role === Role.ADMIN ? exams : exams.filter(e => e.classId === user.classId);
+      myExams.forEach(exam => {
+        const examTime = new Date(exam.date);
+        const diff = differenceInMinutes(examTime, now);
+        const notifKey = `exam-${exam.id}`;
+
+        if (diff > 0 && diff <= reminderSettings.examDelay && !notifiedEventsRef.current.has(notifKey)) {
+          const timeText = diff > 60 ? `${Math.round(diff/60)}h` : `${diff} min`;
+          addNotification(`Rappel Examen: ${exam.subject} dans ${timeText}`, "WARNING", "ds");
+          notifiedEventsRef.current.add(notifKey);
+        }
+      });
+
+      // 3. Check Meets (One-off)
+      const myMeets = user.role === Role.ADMIN ? meets : meets.filter(m => m.classId === user.classId);
+      myMeets.forEach(meet => {
+        const meetTime = new Date(meet.date);
+        const diff = differenceInMinutes(meetTime, now);
+        const notifKey = `meet-${meet.id}`;
+
+        if (diff > 0 && diff <= reminderSettings.meetDelay && !notifiedEventsRef.current.has(notifKey)) {
+          addNotification(`Rappel Visio: ${meet.subject} démarre dans ${diff} min`, "INFO", "meet");
+          notifiedEventsRef.current.add(notifKey);
+        }
+      });
+    };
+
+    const interval = setInterval(checkReminders, 60000); // Check every minute
+    checkReminders(); // Initial check
+
+    return () => clearInterval(interval);
+  }, [user, courses, exams, meets, reminderSettings]);
+
 
   // 2. Activity Listener for Auto-Logout
   const resetActivity = useCallback(() => {
@@ -472,7 +574,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     logAction('SUPPRESSION', `Sondage ID: ${id}`, 'WARNING');
   };
 
-  // --- TIME TABLES (NOUVEAU) ---
+  // --- TIME TABLES (Fichiers) ---
   const addTimeTable = async (item: Omit<TimeTable, 'id' | 'authorId' | 'classId' | 'dateAdded'>) => {
     const newItem: TimeTable = { 
       ...item, 
@@ -498,6 +600,24 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     setTimeTables(prev => prev.filter(t => t.id !== id));
     addNotification('Emploi du temps supprimé', 'INFO');
     logAction('SUPPRESSION', `Emploi du temps ID: ${id}`, 'WARNING');
+  };
+
+  // --- COURSES (Calendrier Interactif) ---
+  const addCourse = async (item: Omit<Course, 'id' | 'classId'>) => {
+    if (!user) return;
+    const newCourse: Course = {
+      ...item,
+      id: Math.random().toString(36).substr(2, 9),
+      classId: user.classId || 'default'
+    };
+    setCourses(prev => [...prev, newCourse]);
+    addNotification('Cours ajouté au calendrier', 'SUCCESS');
+    logAction('CALENDRIER', `Ajout cours: ${item.subject}`);
+  };
+
+  const deleteCourse = async (id: string) => {
+    setCourses(prev => prev.filter(c => c.id !== id));
+    addNotification('Cours retiré du calendrier', 'INFO');
   };
 
   // --- SHARE FUNCTION (EMAIL with SendGrid Support) ---
@@ -526,7 +646,6 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     let subject = '';
     let body = '';
     const footer = `\r\n\r\n--\r\nEnvoyé depuis ${schoolName} - Portail Numérique`;
-    const htmlFooter = `<br><br><hr><em>Envoyé depuis <strong>${schoolName}</strong> - Portail Numérique</em>`;
     
     switch (type) {
       case 'ANNOUNCEMENT':
@@ -758,10 +877,11 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
 
   const contextValue: AppContextType = {
     user, users, classes, schoolName, setSchoolName,
-    announcements, meets, exams, polls, sentEmails, timeTables,
+    announcements, meets, exams, polls, sentEmails, timeTables, courses,
     auditLogs, notifications, notificationHistory,
     addNotification, dismissNotification, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification, clearNotificationHistory,
     highlightedItemId, setHighlightedItemId,
+    reminderSettings, updateReminderSettings,
     theme, toggleTheme,
     login, logout, getCurrentClass,
     addAnnouncement, updateAnnouncement, deleteAnnouncement,
@@ -769,6 +889,7 @@ export const AppProvider: React.FC<PropsWithChildren> = ({ children }) => {
     addExam, updateExam, deleteExam,
     addPoll, updatePoll, votePoll, deletePoll,
     addTimeTable, deleteTimeTable,
+    addCourse, deleteCourse,
     emailConfig, updateEmailConfig, shareResource, resendEmail,
     addClass, updateClass, deleteClass,
     addUser, importUsers, updateUser, deleteUser
